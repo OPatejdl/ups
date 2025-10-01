@@ -8,7 +8,7 @@ Description: This script defines enums used throughout the python scripts
 """
 
 # Defines type of scenes in the application
-scenes_types: dict[str, int] = {
+scenes_types = {
     "LOBBY": 0,
     "W8ING": 1,
     "GAME": 2,
