@@ -7,7 +7,9 @@ Version: 0.1.0
 Description: This script managing user data and scene content
 """
 from PyQt6.QtWidgets import QMainWindow
-from constants import *
+from core.constants import *
+from scenes.login import LoginScene
+
 
 class User:
     """
@@ -16,21 +18,24 @@ class User:
     """
     ...
 
+
 class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+
+        self.login_scene = LoginScene()
+
         self._setUI()
 
     def _setUI(self):
         """
         Set up the UI
-
-        Return:
-            None
         """
 
         # Set up Title, Size and Layout
         self.setWindowTitle(WINDOW_NAME)
         self.setGeometry(DEFAULT_X_POS, DEFAULT_Y_POS,
                          DEFAULT_WIDTH, DEFAULT_HEIGH)
+
+        self.setCentralWidget(self.login_scene)

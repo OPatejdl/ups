@@ -9,8 +9,9 @@ Description: This script defines enums used throughout the python scripts
 
 # Defines type of scenes in the application
 scenes_types = {
-    "LOBBY": 0,
-    "W8ING": 1,
-    "GAME": 2,
-    "RESULT": 3
+    "LOGIN": 0,
+    "LOBBY": 1,
+    "W8ING": 2,
+    "GAME": 3,
+    "RESULT": 4
 }
