@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QWidget
 )
 
+
 class ResultScene(QWidget):
     """
     Class representing Result Scene

@@ -7,7 +7,11 @@ Version: 0.1.0
 Description: This script managing user data and scene content
 """
 from PyQt6.QtWidgets import QMainWindow
-from core.constants import *
+from core.constants import (
+    WINDOW_NAME,
+    DEFAULT_X_POS, DEFAULT_Y_POS,
+    DEFAULT_HEIGH, DEFAULT_WIDTH
+)
 from scenes.login import LoginScene
 
 
