@@ -11,9 +11,11 @@ Description: This script defines entry point of application
 import sys
 from PyQt6.QtWidgets import QApplication
 from core.scene_manager import MainWindow
+from core.styling import setAppStyling
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    setAppStyling(app)
 
     window = MainWindow()
     window.show()

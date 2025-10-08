@@ -6,6 +6,9 @@ Date: 2025-09-28
 Version: 0.1.0
 Description: This script defines constants used throughout the python scripts
 """
+
+from PyQt6.QtGui import QFont
+
 #######################
 # Titles and text
 WINDOW_NAME: str = "Tic-Tac-Toe"
@@ -24,3 +27,4 @@ TITLES_SIZE = 20
 LABEL_SIZE = 12
 
 LOGIN_SPACING = 20
+

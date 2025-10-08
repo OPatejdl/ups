@@ -2,20 +2,159 @@
 Filename: lobby.py
 Author: Ondrej Patejdl
 Contact: opatejdl@students.zcu.cz
-Date: 2025-10-02
+Date: 2025-10-08
 Version: 0.1.0
 Description: This script defines lobby scenes of the game
 """
 
+from PyQt6.QtCore import (
+    pyqtSignal, Qt)
 from PyQt6.QtWidgets import (
-    QWidget
+    QWidget, QPushButton,
+    QLabel, QVBoxLayout,
+    QHBoxLayout
+)
+from core.constants import (
+    LOGIN_SPACING
+)
+from core.styling import (
+    TITLE_FONT, LABEL_FONT
 )
 
 
 class LobbyScene(QWidget):
     """
     Class representing Lobby scene
+
+    Signals:
+        findGameRequest
+            - signal emitted, when FIND GAME btn clicked
+        exitRequest
+            - signal emitted, when EXIT btn clicked
     """
+    findGameRequest = pyqtSignal()
+    exitRequest = pyqtSignal()
 
     def __init__(self):
         super().__init__()
+        self.findGame_btn = QPushButton("FIND GAME", self)
+        self.exit_btn = QPushButton("EXIT", self)
+
+        self.usernameInfo_label = QLabel(self)
+        self.connectionInfo_label = QLabel(self)
+
+        self._setupLobbyScene()
+
+        self.findGame_btn.clicked.connect(self._findGameBtnClicked)
+        self.exit_btn.clicked.connect(self._exitBtnClicked)
+
+    def _setupLobbyScene(self):
+        """
+        Private function, which sets up login scene
+            - creates title and info labels
+            - formats FIND GAME and EXIT button
+        """
+        # --- Title setup ---
+        title_label = QLabel("LOBBY", self)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setFont(TITLE_FONT)
+
+         # --- User info setup ---
+        username_label = QLabel("Username:", self)
+        username_label.setFont(LABEL_FONT)
+
+        connection_label = QLabel("Connected to:", self)
+        connection_label.setFont(LABEL_FONT)
+        
+
+        # --- Information layout setup ---
+        info_layout = QVBoxLayout()
+        info_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        # Username line
+        username_layout = QHBoxLayout()
+        username_layout.addWidget(username_label)
+        username_layout.addSpacing(10)
+        username_layout.addWidget(self.usernameInfo_label)
+
+        # Connection info Line
+        connection_layout = QHBoxLayout()
+        connection_layout.addWidget(connection_label)
+        connection_layout.addSpacing(10)
+        connection_layout.addWidget(self.connectionInfo_label)
+
+        info_layout.addLayout(username_layout)
+        info_layout.addLayout(connection_layout)
+
+        # --- Buttons Set up ---
+        self.findGame_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #007BFF;
+            }
+            QPushButton:hover {
+                background-color: #33A1FF;
+            }
+            QPushButton:pressed {
+                background-color: #0056B3;
+            }
+        """)
+        self.findGame_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        self.exit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B3B;
+            }
+            QPushButton:hover {
+                background-color: #FF6666;
+            }
+            QPushButton:pressed {
+                background-color: #CC0000;
+            }
+        """)
+        self.exit_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch(1)
+        button_layout.addWidget(self.exit_btn)
+        button_layout.addSpacing(20)
+        button_layout.addWidget(self.findGame_btn)
+        button_layout.addStretch(1)
+
+        # --- Main Lobby layout ---
+        lobby_layout = QVBoxLayout()
+        lobby_layout.addStretch(1)
+        lobby_layout.addWidget(title_label,
+                               alignment=Qt.AlignmentFlag.AlignHCenter)
+        lobby_layout.addSpacing(20)
+        lobby_layout.addLayout(info_layout)
+        lobby_layout.addSpacing(30)
+        lobby_layout.addLayout(button_layout)
+        lobby_layout.addStretch(2)
+
+        self.setLayout(lobby_layout)
+
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def _exitBtnClicked(self):
+        """
+        Function called when EXIT btn clicked
+
+        Emits:
+        exitRequest signal
+        """
+        print("Exit Btn Clicked")
+        self.exitRequest.emit()
+
+    def _findGameBtnClicked(self):
+        """
+        Function called when FIND GAME btn clicked
+
+        Emits:
+        findGameRequest signal
+        """
+        print("FIND GAME btn clicked")
+        self.findGameRequest.emit()
+
+    def updateInfo(self, username: str, connectionInfo: str):
+        self.usernameInfo_label.setText(username)
+        self.connectionInfo_label.setText(connectionInfo)

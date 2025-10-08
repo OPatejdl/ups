@@ -2,17 +2,21 @@
 Filename: scene_manager.py
 Author: Ondrej Patejdl
 Contact: opatejdl@students.zcu.cz
-Date: 2025-09-28
+Date: 2025-10-08
 Version: 0.1.0
 Description: This script managing user data and scene content
 """
-from PyQt6.QtWidgets import QMainWindow
+from PyQt6.QtWidgets import (
+    QMainWindow, QStackedWidget)
+from PyQt6.QtCore import (
+    Qt, pyqtSlot)
 from core.constants import (
     WINDOW_NAME,
     DEFAULT_X_POS, DEFAULT_Y_POS,
-    DEFAULT_HEIGH, DEFAULT_WIDTH
+    DEFAULT_HEIGH, DEFAULT_WIDTH,
 )
 from scenes.login import LoginScene
+from scenes.lobby import LobbyScene
 
 
 class User:
@@ -28,7 +32,18 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.scene_manager = QStackedWidget(self)
+
+        # --- Login Scene ---
         self.login_scene = LoginScene()
+        self.scene_manager.addWidget(self.login_scene)
+        self.login_scene.loginRequest.connect(self.loginRequestHandler)
+
+        # --- Lobby Scene ---
+        self.lobby_scene = LobbyScene()
+        self.scene_manager.addWidget(self.lobby_scene)
+        self.lobby_scene.findGameRequest.connect(self.findGameRequestHandler)
+        self.lobby_scene.exitRequest.connect(self.exitRequestHandler)
 
         self._setUI()
 
@@ -42,4 +57,36 @@ class MainWindow(QMainWindow):
         self.setGeometry(DEFAULT_X_POS, DEFAULT_Y_POS,
                          DEFAULT_WIDTH, DEFAULT_HEIGH)
 
-        self.setCentralWidget(self.login_scene)
+        self.setCentralWidget(self.scene_manager)
+
+        self.scene_manager.setCurrentWidget(self.login_scene)
+
+    @pyqtSlot(str, str, int)
+    def loginRequestHandler(self, username: str, ip: str, port: int):
+        """
+        Function handles exitRequest signal emitted by login_btn in the Login scene
+
+        Args:
+            username: 
+                str; represents name of user
+            ip: 
+                str; represents IP address to which user want to connect
+            port: 
+                int; represent PORT, to which user want to connect
+        """
+        self.lobby_scene.updateInfo(username, "/".join((ip, str(port))))
+        self.scene_manager.setCurrentWidget(self.lobby_scene)
+
+    @pyqtSlot()
+    def findGameRequestHandler(self):
+        """
+        Function handles findGameRequest signal emitted by findGame_btn in the Lobby scene
+        """
+        print("Finding Game")
+
+    @pyqtSlot()
+    def exitRequestHandler(self):
+        """
+        Function handles exitRequest signal emitted by exit_btn in the Lobby scene
+        """
+        self.scene_manager.setCurrentWidget(self.login_scene)

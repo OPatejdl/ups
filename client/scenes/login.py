@@ -2,7 +2,7 @@
 Filename: login.py
 Author: Ondrej Patejdl
 Contact: opatejdl@students.zcu.cz
-Date: 2025-10-05
+Date: 2025-10-08
 Version: 0.1.0
 Description: This script defines login scene of the game
 """
@@ -13,12 +13,11 @@ from PyQt6.QtWidgets import (
     QWidget, QLineEdit, QPushButton, QLabel,
     QFormLayout, QVBoxLayout, QHBoxLayout
 )
-from PyQt6.QtGui import QFont
 from core.constants import (
-    LETTER_FONT,
-    TITLES_SIZE,
-    LABEL_SIZE,
     LOGIN_SPACING
+)
+from core.styling import (
+    TITLE_FONT, LABEL_FONT
 )
 
 
@@ -27,12 +26,12 @@ class LoginScene(QWidget):
     Class representing Login scene
 
     Signals:
-        loginRequested
+        loginRequest
             - signal emitted, when Login button was clicked
     """
 
     # Login Scene signals
-    loginRequested = pyqtSignal(str, str, int)
+    loginRequest = pyqtSignal(str, str, int)
 
     def __init__(self):
         super().__init__()
@@ -48,30 +47,27 @@ class LoginScene(QWidget):
 
         self.login_btn = QPushButton("LOGIN", self)
 
-        self._setupScene()
+        self._setupLoginScene()
 
         self.login_btn.clicked.connect(self._onLoginBtnClick)
 
-    def _setupScene(self):
+    def _setupLoginScene(self):
         """
         Private function, which sets up login scene
             - formats title, form and login button
         """
         # --- Title setup ---
-        title_label = QLabel("SERVER LOGIN")
+        title_label = QLabel("SERVER LOGIN", self)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setFont(QFont(LETTER_FONT, TITLES_SIZE,
-                                  QFont.Weight.ExtraBold))
+        title_label.setFont(TITLE_FONT)
 
         # Labels set up
-        nick_label = QLabel("Nickname:")
-        ip_label = QLabel("IP Address:")
-        port_label = QLabel("Port:")
-
-        label_font = QFont(LETTER_FONT, LABEL_SIZE, QFont.Weight.DemiBold)
+        nick_label = QLabel("Nickname:", self)
+        ip_label = QLabel("IP Address:", self)
+        port_label = QLabel("Port:", self)
 
         for lbl in (nick_label, ip_label, port_label):
-            lbl.setFont(label_font)
+            lbl.setFont(LABEL_FONT)
             lbl.setAlignment(Qt.AlignmentFlag.AlignRight |
                              Qt.AlignmentFlag.AlignVCenter)
 
@@ -93,27 +89,17 @@ class LoginScene(QWidget):
         self.login_btn.setStyleSheet("""
             QPushButton {
                 background-color: #00994C;
-                color: white;
-                border-radius: 6px;
-                padding: 10px 20px;
-                font-size: 10px;
-                font-weight: bold;
-                min-width: 40px;
-                min-height: 10px;
-                max-width: 150px;
             }
 
             QPushButton:hover {
                 background-color: #00B359;      /* light green on hover */
-                color: #F0F0F0;                 /* lighter text color */
             }
 
             QPushButton:pressed {
                 background-color: #007A3D;      /* darker green on click */
-                border: 2px solid #004C26;
-                color: #E0E0E0;
             }
         """)
+        self.login_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         hbox_btn = QHBoxLayout()
         hbox_btn.addWidget(self.login_btn)
@@ -139,9 +125,9 @@ class LoginScene(QWidget):
         """
         nick = self.nickname_box.text().strip()
         host = self.ip_address_box.text().strip()
-        # TODO: add validation if allowed
+        # TODO: add validation
         if (self.port_box.text() == "" or nick == "" or host == ""):
             print("Empty values!!!")
             return
         port = int(self.port_box.text())
-        self.loginRequested.emit(nick, host, port)
+        self.loginRequest.emit(nick, host, port)
