@@ -11,7 +11,8 @@
 */
 enum class TYPE {
     INFO,
-    ERROR
+    ERROR,
+    WARNING
 };
 
 /* 
@@ -46,5 +47,6 @@ class Logger {
 
 #define LOG_INFO(msg) Logger::get_instance().log(TYPE::INFO, msg)
 #define LOG_ERROR(msg) Logger::get_instance().log(TYPE::ERROR, msg)
+#define LOG_WARNING(msg) Logger::get_instance().log(TYPE::WARNING, msg)
 
 #endif

@@ -17,6 +17,9 @@
 #define ERROR_INVALID_PARAM 1
 #define ERROR_UNSET_PARAMETERS 2
 #define ERROR_LOGGER_UNOPEN 3
+#define ERROR_UNCREATED_SERVER_SOC 4
+#define ERROR_BINDING 5
+#define ERROR_LISTEN 6
 
 /* 
 -------------------------
