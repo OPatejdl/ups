@@ -21,7 +21,7 @@ class User {
         USER_STATE state;           /** current state of user */
         std::string nickname;       /** nickname of the user */
 
-        User(int socket_fd, std::string nick);      /** Constructor of class User */
+        User(int socket_fd);        /** Constructor of class User */
 };
 
 #endif

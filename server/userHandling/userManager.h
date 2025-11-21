@@ -4,11 +4,12 @@
 #include <vector>
 #include <memory>
 #include "user.h"
+#include "../utility/utility.h"
 
 class UserManager {
     public:
         static std::vector<std::shared_ptr<User>> user_list;
-        static void addUser(int fd);
+        static bool addUser(int fd);
 };
 
 #endif

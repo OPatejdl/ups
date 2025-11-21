@@ -81,6 +81,6 @@ void Logger::log(TYPE type, const std::string &msg) {
     whole_msg = str_time + " -> [" +  str_type + "]: " + msg + "\n";
 
     std::cout << whole_msg;
-    log_file_ << whole_msg;
+    log_file_ << whole_msg << std::flush;
 }
 

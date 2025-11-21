@@ -1,9 +1,10 @@
 #include "utility/utility.h"
 #include "config.h"
 #include "logger/logger.h"
+#include "userHandling/userManager.h"
 
 #include <iostream>
-#include <string>
+#include <string.h>
 #include <cstdlib>
 
 #include <unistd.h>
@@ -26,10 +27,12 @@ int main(int argc, char *argv[]) {
     char buffer[MAX_BUFFER_SIZE];
 
     // Vars for server's address setup and connected user's address
-    struct sockaddr_in my_addr, peer_adr;
+    struct sockaddr_in my_addr, peer_addr;
     socklen_t addr;
 
     fd_set current_sockets, ready_sockets;
+
+    std::string msg ;
     
     // Check parameters
     if (argc < MIN_ARG || argc > MAX_ARG) {
@@ -105,7 +108,33 @@ int main(int argc, char *argv[]) {
 
             if (fd == server_socket) {
                 // possible new connection
+                addr = sizeof(peer_addr);
+
+                client_socket = accept(server_socket, (struct sockaddr *) &peer_addr, &addr);
+                if (client_socket < 0) {
+                    LOG_WARNING("Error when loading new client!");
+                    continue;
+                }
+
+                if (UserManager::addUser(client_socket)) {
+                    // add successfully
+                    FD_SET(client_socket, &current_sockets);
+                    LOG_INFO("New client connected: " + std::to_string(client_socket));
+
+                    msg = "Welcome to server!";
+                    send(client_socket, msg.c_str(), msg.size(), 0);
+                } else {
+                    // Excited total amount of clients
+                    LOG_WARNING("Full Server \n\t Unable to add new client:" + std::to_string(client_socket) + "was not accepted!");
+                    
+                    msg = "Server is currently full. Try again later";
+                    
+                    send(client_socket, msg.c_str(), msg.size(), 0);
+                    close(client_socket);
+                }
                 
+            } else {
+                LOG_INFO("Work in progress...");
             }
         }
     }

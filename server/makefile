@@ -4,7 +4,7 @@ CPPFLAGS = -Wall -Wextra -I.
 # output file
 BIN = main.exe
 
-OBJ = main.o logger/logger.o utility/utility.o
+OBJ = main.o logger/logger.o utility/utility.o userHandling/user.o userHandling/userManager.o
 
 # compilation
 %.o: %.cpp

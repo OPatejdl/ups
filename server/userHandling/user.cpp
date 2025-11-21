@@ -1,7 +1,6 @@
 #include "user.h"
 
-User::User(int socket_fd, std::string nick)
+User::User(int socket_fd)
     : fd_socket(socket_fd),
-      state(USER_STATE::LOBBY),
-      nickname(nick)
+      state(USER_STATE::CONNECTED)
 {}
