@@ -6,9 +6,10 @@
 #include <string>
 
 // ---- Init variables ----
-int PORT = PORT_INIT;
-int ROOMS_COUNT = ROOMS_INIT_COUNT;
-int CLIENTS_COUNT = CLIENT_INIT_COUNT;
+unsigned int PORT = PORT_INIT;
+unsigned int ROOMS_COUNT = ROOMS_INIT_COUNT;
+unsigned int CLIENTS_COUNT = CLIENT_INIT_COUNT;
+volatile sig_atomic_t server_running = START_SERVER;
 
 // ---- Functions ----
 
@@ -81,4 +82,8 @@ void handle_params(int argc, char *argv[]) {
             exit(ERROR_INVALID_PARAM);
         }
     }
+}
+
+void ending_signal_handler(int) {
+    server_running = END_SERVER;
 }

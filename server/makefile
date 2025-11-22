@@ -2,9 +2,15 @@ CPP = g++
 CPPFLAGS = -Wall -Wextra -I.
 
 # output file
-BIN = main.exe
+BIN = server.exe
 
-OBJ = main.o logger/logger.o utility/utility.o userHandling/user.o userHandling/userManager.o
+OBJ = main.o \
+	exceptions/serverException.o \
+	logger/logger.o \
+	utility/utility.o \
+	userHandling/user.o \
+	userHandling/userManager.o \
+	server/server.o
 
 # compilation
 %.o: %.cpp

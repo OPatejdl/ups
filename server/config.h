@@ -16,11 +16,19 @@
 -----------------
 */
 #define PORT_INIT 10000
-#define CLIENT_INIT_COUNT -1
-#define ROOMS_INIT_COUNT -1
+#define CLIENT_INIT_COUNT 0U
+#define ROOMS_INIT_COUNT 0U
 #define MAX_BUFFER_SIZE 1024
 #define BACKLOG_SIZE 16
 #define ADDITIONAL_STREAM 1
+
+/* 
+-------------------------
+-- Server Signal Setup --
+-------------------------
+*/
+#define END_SERVER 0
+#define START_SERVER 1 
 
 /* 
 ------------------

@@ -1,6 +1,7 @@
 #ifndef __UTILITY__
 #define __UTILITY__
 
+#include <signal.h>
 /* 
 ------------------------
 -- Preprocess Symbols --
@@ -27,9 +28,10 @@
 -------------------------
 */
 // Init of these variables is in utility.cpp
-extern int PORT;
-extern int ROOMS_COUNT;
-extern int CLIENTS_COUNT;
+extern unsigned int PORT;
+extern unsigned int ROOMS_COUNT;
+extern unsigned int CLIENTS_COUNT;
+extern volatile sig_atomic_t server_running;
 
 /*
 -------------------------
@@ -38,6 +40,7 @@ extern int CLIENTS_COUNT;
 */
 
 void handle_params(int argc, char *argv[]);
+void ending_signal_handler(int);
 
 
 #endif
