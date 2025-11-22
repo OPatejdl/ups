@@ -9,7 +9,7 @@
 class UserManager {
     public:
         static std::vector<std::shared_ptr<User>> user_list;
-        static bool addUser(int fd);
+        static bool add_new_user(int fd);
 };
 
 #endif
