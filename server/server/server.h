@@ -17,32 +17,36 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-class Server {
-    public:
-        ~Server();
-        Server();
+namespace MyServer {
 
-        void run_server();
+    class Server {
+        public:
+            ~Server();
+            Server();
 
-        Server(const Server&) = delete;
-        Server& operator = (const Server&) = delete;
+            void run_server();
 
-    private:
-        int server_socket, return_value;
-        int client_socket, fd;
-        char buffer[MAX_BUFFER_SIZE];
-        struct sockaddr_in my_addr, peer_addr;
-        socklen_t addr;
-        fd_set current_sockets, ready_sockets;
-        std::string msg;
+            Server(const Server&) = delete;
+            Server& operator = (const Server&) = delete;
 
-        // Init functions
-        void create_server_socket();
-        void bind_server();
-        void server_listen();
+        private:
+            int server_socket, return_value;
+            int client_socket, fd;
+            char buffer[MAX_BUFFER_SIZE];
+            struct sockaddr_in my_addr, peer_addr;
+            socklen_t addr;
+            fd_set current_sockets, ready_sockets;
+            std::string msg;
 
-        // Function for server run
-        void new_client_connection();
+            // Init functions
+            void create_server_socket();
+            void bind_server();
+            void server_listen();
+
+            // Function for server run
+            void new_client_connection();
+    };
+
 };
 
 #endif

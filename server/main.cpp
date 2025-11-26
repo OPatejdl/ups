@@ -11,7 +11,7 @@
 
 // exe cmd: server.exe -p (PORT) -C (MAX_CLIENT) -r (MAX_ROOMS)
 int main(int argc, char *argv[]) {
-
+    int err_code;
     // Check parameters
     if (argc < MIN_ARG || argc > MAX_ARG) {
         LOG_ERROR("Invalid arguments count.\n"
@@ -19,34 +19,46 @@ int main(int argc, char *argv[]) {
         return ERROR_INVALID_PARAM;
     };
 
-    // Set Parameters
-    handle_params(argc, argv);
-
-    // Check if rooms and client set
-    if (CLIENTS_COUNT == CLIENT_INIT_COUNT || ROOMS_COUNT == ROOMS_INIT_COUNT) {
-        LOG_ERROR("Unset rooms or clients count\n"
-                "\tNeed to run starting command in format: ./main -c <MAX_CLIENT> -r <MAX_ROOMS>");
-        return ERROR_UNSET_PARAMETERS;
-    }
-
-    // set handler for Ctrl+C
-    signal(SIGINT, ending_signal_handler);
-
     // Server set up and run
     try {
+        // Set Parameters
+        handle_params(argc, argv);
+
+        // Check if rooms and client set
+        if (CLIENTS_COUNT == CLIENT_INIT_COUNT || ROOMS_COUNT == ROOMS_INIT_COUNT) {
+            LOG_ERROR("Unset rooms or clients count\n"
+                    "\tNeed to run starting command in format: ./main -c <MAX_CLIENT> -r <MAX_ROOMS>");
+            return ERROR_UNSET_PARAMETERS;
+        }
+
+        // set handler for Ctrl+C
+        signal(SIGINT, ending_signal_handler);
+
         LOG_INFO("Initializing Server");
         Server server;
 
         LOG_INFO("Starting server's main loop");
         server.run_server();
 
-    } catch (const ServerException& e) {
+    // Error when handling user's params
+    } catch (const MyExceptions::UtilityException& e) {
+        err_code = e.get_err_code();
         std::cerr << "FATAL SEVER ERROR: " << e.what() <<std::endl;
         LOG_ERROR("Server terminated: " + std::string(e.what()));
-        LOG_ERROR("\tError Code: " + std::to_string(e.get_err_code()));
+        LOG_ERROR("\tError Code: " + std::to_string(err_code));
 
-        return EXIT_FAILURE;
+        return err_code;
 
+    // Error while server running
+    }catch (const MyExceptions::ServerException& e) {
+        err_code = e.get_err_code();
+        std::cerr << "FATAL SEVER ERROR: " << e.what() <<std::endl;
+        LOG_ERROR("Server terminated: " + std::string(e.what()));
+        LOG_ERROR("\tError Code: " + std::to_string(err_code));
+
+        return err_code;
+
+    // Unexpected Error
     } catch (const std::exception& e) {
         std::cerr << "UNEXPECTED ERROR: " << e.what() << std::endl;
         LOG_ERROR("Server terminated due to unexpected error: " + std::string(e.what()));

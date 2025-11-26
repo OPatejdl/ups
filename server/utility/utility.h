@@ -1,46 +1,53 @@
-#ifndef __UTILITY__
-#define __UTILITY__
+#ifndef UTILITY_H
+#define UTILITY_H
 
-#include <signal.h>
-/* 
-------------------------
--- Preprocess Symbols --
-------------------------
-*/
-#define MIN_ARG 5
-#define MAX_ARG 7
+#include <csignal>
+#include "../logger/logger.h"
+#include "../config.h"
+#include "../exceptions/exceptions.h"
+#include <iostream>
+#include <cstdlib>
+#include <string>
 
-/* 
-------------------------
--- Error Codes --
-------------------------
-*/
-#define ERROR_INVALID_PARAM 1
-#define ERROR_UNSET_PARAMETERS 2
-#define ERROR_LOGGER_UNOPEN 3
-#define ERROR_UNCREATED_SERVER_SOC 4
-#define ERROR_BINDING 5
-#define ERROR_LISTEN 6
+namespace Utility {
+    /* 
+    ------------------------
+    -- Preprocess Symbols --
+    ------------------------
+    */
+    inline constexpr unsigned int  MIN_ARG = 5;
+    inline constexpr unsigned int MAX_ARG = 7;
 
-/* 
--------------------------
------ Param Symbols -----
--------------------------
-*/
-// Init of these variables is in utility.cpp
-extern unsigned int PORT;
-extern unsigned int ROOMS_COUNT;
-extern unsigned int CLIENTS_COUNT;
-extern volatile sig_atomic_t server_running;
+    /* 
+    ------------------------
+    -- Error Codes --
+    ------------------------
+    */
+    inline constexpr int ERROR_INVALID_PARAM = 1;
+    inline constexpr int ERROR_UNSET_PARAMETERS = 2;
+    inline constexpr int ERROR_LOGGER_UNOPEN = 3;
+    inline constexpr int ERROR_UNCREATED_SERVER_SOC = 4;
+    inline constexpr int ERROR_BINDING = 5;
+    inline constexpr int ERROR_LISTEN = 6;
 
-/*
--------------------------
-------- Functions -------
--------------------------
-*/
+    /* 
+    -------------------------
+    ----- Param Symbols -----
+    -------------------------
+    */
+    // Init of these variables is in utility.cpp
+    extern unsigned int PORT;
+    extern unsigned int ROOMS_COUNT;
+    extern unsigned int CLIENTS_COUNT;
+    extern volatile sig_atomic_t server_running;
 
-void handle_params(int argc, char *argv[]);
-void ending_signal_handler(int);
-
+    /*
+    -------------------------
+    ------- Functions -------
+    -------------------------
+    */
+    void handle_params(int argc, char *argv[]);
+    void ending_signal_handler(int);
+}
 
 #endif
