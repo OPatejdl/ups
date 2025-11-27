@@ -13,8 +13,8 @@ namespace MyExceptions {
             int _err_num;
 
         protected:
-            BaseException(int err_code = 0)
-                : std::runtime_error(build_msg(err_code)),
+            BaseException(const std::string& msg, int err_code = 0)
+                : std::runtime_error(msg),
                 _err_num(err_code) {}
 
             virtual std::string build_msg(int err_code) const = 0;
@@ -29,7 +29,7 @@ namespace MyExceptions {
 
         public:
             ServerException(int my_err_code)
-                : BaseException(my_err_code){};
+                : BaseException(build_msg(my_err_code), my_err_code){};
     };
 
     class UtilityException: public BaseException {
@@ -38,7 +38,7 @@ namespace MyExceptions {
 
         public:
             UtilityException(int my_err_code)
-                : BaseException(my_err_code) {}
+                : BaseException(build_msg(my_err_code), my_err_code) {}
     };
 };
 

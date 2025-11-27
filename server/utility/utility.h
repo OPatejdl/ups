@@ -15,8 +15,8 @@ namespace Utility {
     -- Preprocess Symbols --
     ------------------------
     */
-    inline constexpr unsigned int  MIN_ARG = 5;
-    inline constexpr unsigned int MAX_ARG = 7;
+    inline constexpr int  MIN_ARG = 5;
+    inline constexpr int MAX_ARG = 7;
 
     /* 
     ------------------------

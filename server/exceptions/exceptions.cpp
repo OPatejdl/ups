@@ -25,9 +25,8 @@ namespace MyExceptions {
         std::string str_err_code = std::to_string(err_code);
 
         switch(err_code) {
-            case Utility::ERROR_INVALID_PARAM {
+            case Utility::ERROR_INVALID_PARAM:
                 return "Parameters handling error: Invalid input from user!  [Code: " + str_err_code + "]";
-            }
             default:
                 return "Unknown error has occurred [Code: " + str_err_code + "]";
         }

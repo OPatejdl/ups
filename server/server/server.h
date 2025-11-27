@@ -5,7 +5,7 @@
 #include "../config.h"
 #include "../logger/logger.h"
 #include "../userHandling/userManager.h"
-#include "../exceptions/serverException.h"
+#include "../exceptions/exceptions.h"
 
 #include <iostream>
 #include <string.h>
@@ -32,7 +32,7 @@ namespace MyServer {
         private:
             int server_socket, return_value;
             int client_socket, fd;
-            char buffer[MAX_BUFFER_SIZE];
+            char buffer[Config::MAX_BUFFER_SIZE];
             struct sockaddr_in my_addr, peer_addr;
             socklen_t addr;
             fd_set current_sockets, ready_sockets;

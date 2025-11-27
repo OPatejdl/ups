@@ -1,15 +1,18 @@
-#ifndef __USER_MANAGER__
-#define __USER_MANAGER__
+#ifndef USER_MANAGER_H
+#define USER_MANAGER_H
 
 #include <vector>
 #include <memory>
 #include "user.h"
 #include "../utility/utility.h"
 
-class UserManager {
-    public:
-        static std::vector<std::shared_ptr<User>> user_list;
-        static bool add_new_user(int fd);
-};
+namespace UserManaging {
 
+    class UserManager {
+        public:
+            static std::vector<std::shared_ptr<MyUser::User>> user_list;
+            static bool add_new_user(int fd);
+    };
+
+}
 #endif

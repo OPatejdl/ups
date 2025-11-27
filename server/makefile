@@ -5,7 +5,7 @@ CPPFLAGS = -Wall -Wextra -I.
 BIN = server.exe
 
 OBJ = main.o \
-	exceptions/serverException.o \
+	exceptions/exceptions.o \
 	logger/logger.o \
 	utility/utility.o \
 	userHandling/user.o \

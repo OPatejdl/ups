@@ -2,7 +2,7 @@
 #include "config.h"
 #include "logger/logger.h"
 #include "server/server.h"
-#include "exceptions/serverException.h"
+#include "exceptions/exceptions.h"
 
 #include <iostream>
 #include <string>
@@ -13,29 +13,29 @@
 int main(int argc, char *argv[]) {
     int err_code;
     // Check parameters
-    if (argc < MIN_ARG || argc > MAX_ARG) {
+    if (argc < Utility::MIN_ARG || argc > Utility::MAX_ARG) {
         LOG_ERROR("Invalid arguments count.\n"
                 "\tNeed to run starting command using format: ./main <-p <PORT>> -c <MAX_CLIENT> -r <MAX_ROOMS>");
-        return ERROR_INVALID_PARAM;
+        return Utility::ERROR_INVALID_PARAM;
     };
 
     // Server set up and run
     try {
         // Set Parameters
-        handle_params(argc, argv);
+        Utility::handle_params(argc, argv);
 
         // Check if rooms and client set
-        if (CLIENTS_COUNT == CLIENT_INIT_COUNT || ROOMS_COUNT == ROOMS_INIT_COUNT) {
+        if (Utility::CLIENTS_COUNT == Config::CLIENT_INIT_COUNT || Utility::ROOMS_COUNT == Config::ROOMS_INIT_COUNT) {
             LOG_ERROR("Unset rooms or clients count\n"
                     "\tNeed to run starting command in format: ./main -c <MAX_CLIENT> -r <MAX_ROOMS>");
-            return ERROR_UNSET_PARAMETERS;
+            return Utility::ERROR_UNSET_PARAMETERS;
         }
 
         // set handler for Ctrl+C
-        signal(SIGINT, ending_signal_handler);
+        signal(SIGINT, Utility::ending_signal_handler);
 
         LOG_INFO("Initializing Server");
-        Server server;
+        MyServer::Server server;
 
         LOG_INFO("Starting server's main loop");
         server.run_server();
