@@ -1,25 +1,41 @@
 CPP = g++
-CPPFLAGS = -Wall -Wextra -I.
+CPPFLAGS = -Wall -Wextra -I. -std=c++17
+
+# dir setup
+OBJ_DIR = obj
+BIN_DIR = bin
 
 # output file
-BIN = server.exe
+BIN = $(BIN_DIR)/server.exe
 
-OBJ = main.o \
-	exceptions/exceptions.o \
-	logger/logger.o \
-	utility/utility.o \
-	userHandling/user.o \
-	userHandling/userManager.o \
-	server/server.o
+SRCS = src/main.cpp \
+	src/exceptions/exceptions.cpp \
+	src/logger/logger.cpp \
+	src/utility/utility.cpp \
+	src/userHandling/user.cpp \
+	src/userHandling/userManager.cpp \
+	src/server/server.cpp
+
+OBJ = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRCS))
+
+all: $(BIN)
 
 # compilation
-%.o: %.cpp
+$(OBJ_DIR)/%.o: %.cpp
+	@mkdir -p $(@D)
 	$(CPP) -c $(CPPFLAGS) $< -o $@
 
 # final build
 $(BIN): $(OBJ)
+	@mkdir -p $(BIN_DIR)
 	$(CPP) $(CPPFLAGS) $^ -o $@
 
 # remove
 clean:
-	rm -f $(OBJ) $(BIN)
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
+
+# info
+info:
+	@echo "Sources: $(SRCS)"
+	@echo "Objects: $(OBJ)"
+	@echo "Exe: $(BIN)"

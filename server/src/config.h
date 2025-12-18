@@ -21,8 +21,8 @@ namespace Config {
     inline constexpr int START_SERVER = 1;
 
     // --- Logger Setup ---
-    inline constexpr const char* LOGS_FOLDER = "logs";
-    inline constexpr const char* LOGGER_PATH = "logs/server.log";
+    inline constexpr const char* LOGS_FOLDER = "../logs";
+    inline constexpr const char* LOGGER_PATH = "../logs/server.log";
 }
 
 #endif
