@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 namespace Utility {
     /* 
@@ -48,6 +49,7 @@ namespace Utility {
     */
     void handle_params(int argc, char *argv[]);
     void ending_signal_handler(int);
+    std::vector<std::string> split(const std::string& s, char spliter);
 }
 
 #endif

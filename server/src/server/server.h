@@ -5,7 +5,9 @@
 #include "../config.h"
 #include "../logger/logger.h"
 #include "../userHandling/userManager.h"
+#include "../userHandling/user.h"
 #include "../exceptions/exceptions.h"
+#include "../protocolConfig.hpp"
 
 #include <iostream>
 #include <string.h>
@@ -20,6 +22,10 @@
 #include <arpa/inet.h>
 
 namespace MyServer {
+    struct UnauthInfo {
+        std::chrono::steady_clock::time_point joined_time;
+        std::string buffer;
+    };
 
     class Server {
         public:
@@ -39,7 +45,7 @@ namespace MyServer {
             socklen_t addr;
             fd_set current_sockets, ready_sockets;
             std::string msg;
-            std::map<int, std::chrono::steady_clock::time_point> unauth_sockets;
+            std::map<int, UnauthInfo> unauth_sockets;
 
             // Init functions
             void create_server_socket();
@@ -49,7 +55,8 @@ namespace MyServer {
             // Function for server run
             void new_client_connection();
             void handle_client_data();
-            void handle_disconnection();
+            void handle_disconnection(int fd_disconnected);
+            bool process_msg(int client_fd, std::string msg);
 
             // Cleanup functions
             void cleanup_unauth_sockets();

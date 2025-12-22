@@ -1,4 +1,6 @@
 #include "utility.h"
+#include <sstream>
+#include <algorithm>
 
 namespace Utility {
     // ---- Init variables ----
@@ -82,5 +84,23 @@ namespace Utility {
 
     void ending_signal_handler(int) {
         server_running = Config::END_SERVER;
+    }
+
+    std::vector<std::string> split(const std::string& s, char spliter) {
+        std::vector<std::string> tokens;
+        std::string token;
+        std::istringstream tokenStream(s);
+
+        while (std::getline(tokenStream, token, spliter)) {
+            // Remove \n or \r
+            token.erase(std::remove(token.begin(), token.end(), '\n'), token.end());
+            token.erase(std::remove(token.begin(), token.end(), '\r'), token.end());
+            
+            // Do not store empty values
+            if (!token.empty()) {
+                tokens.push_back(token);
+            }
+        }
+        return tokens;
     }
 }

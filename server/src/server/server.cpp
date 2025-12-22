@@ -108,11 +108,11 @@ namespace MyServer {
     void Server::new_client_connection() {
         FD_SET(client_socket, &current_sockets);
 
-        unauth_sockets[client_socket] = std::chrono::steady_clock::now();
+        unauth_sockets[client_socket].joined_time = std::chrono::steady_clock::now();
 
         LOG_INFO("New client socket connected on fd: " + std::to_string(client_socket));
 
-        msg = PROTOCOL_HEADER + "AUTH|1";
+        msg = Protocol::PROTOCOL_HEADER + "AUTH|1\n";
         send(client_socket, msg.c_str(), msg.size(), 0);
         // if (UserManager::add_new_user(client_socket)) {
         //     // add successfully
@@ -137,54 +137,107 @@ namespace MyServer {
         int bytes_recv = recv(fd, buffer, Config::MAX_BUFFER_SIZE, 0);
 
         if (bytes_recv <= 0) {
-            handle_disconnection();
+            handle_disconnection(fd);
             return;
         }
 
-        std::string data(buffer, bytes_recv);
-        std::string_view header = Config::PROTOCOL_HEADER;
-
-        // Check invalid msg
-        if (data.size() < header.size() || data.substr(0, header.size()) != header) {
-            // Remove user in case of invalid protocol
-            LOG_WARNING("Invalid protocol header from fd: " + std::to_string(fd));
-
-            std::string err_msg = "Error: Invalid protocol \n";
-
-            send(fd, err_msg.c_str(), err_msg.size(), 0);
-            close(fd);
-            FD_CLR(fd, &current_sockets);
-            UserManager::remove_user(fd);
-            return;
-        }
-
-        std::string rest_msg = data.substr(header.size());
-    }
-}
-
-void Server::handle_disconnection() {
-    UserManager::disconnect_user(fd);
-    close(fd);
-    FD_CLR(fd, &current_sockets);
-}
-
-void Server::cleanup_unauth_sockets() {
-    auto now = std::chrono:steady_clock::now();
-    auto timeout = std::chrono:seconds(Config::AUTH_TIMEOUT);
-
-    for (auto it = unauth_sockets.begin(); it != unauth_sockets.end(); ) {
-        // Check timeout
-        if (now - it->second > timeout) {
-            int fd_to_close = it->first;
-            LOG_WARNING("Anonymous connection timeout on fd: " + std::to_string(fd_to_close));
-            
-            // Remove socket 
-            close(fd_to_close);
-            FD_CLR(fd_to_close, &current_sockets);
-        
-            it = unauth_sockets.erase(it);
+        // Store received msg
+        std::string* active_buffer;
+        auto user = UserManager::get_user_by_fd(fd);
+        if (user) {
+            active_buffer = &(user->partial_msg);
         } else {
-            ++it;
+            active_buffer = &(unauth_sockets[fd].buffer);
         }
+
+        active_buffer->append(buffer, bytes_recv);
+
+        // Handle msg
+        size_t pos;
+        while ((pos = active_buffer->find('\n')) != std::string::npos) {
+            std::string msg_to_process = active_buffer->substr(0, pos);
+            active_buffer->erase(0, pos + 1);
+
+            if (!process_msg(fd, msg_to_process)) {
+                break;
+            }
+        }
+    }
+
+    void Server::handle_disconnection(int fd_disconnected) {
+        UserManager::disconnect_user(fd_disconnected);
+        unauth_sockets.erase(fd_disconnected);
+
+        close(fd_disconnected);
+        FD_CLR(fd_disconnected, &current_sockets);
+    }
+
+    void Server::cleanup_unauth_sockets() {
+        auto now = std::chrono::steady_clock::now();
+        auto timeout = std::chrono::seconds(Config::AUTH_TIMEOUT);
+
+        for (auto it = unauth_sockets.begin(); it != unauth_sockets.end(); ) {
+            // Check timeout
+            if (now - it->second.joined_time > timeout) {
+                int fd_to_close = it->first;
+                LOG_WARNING("Anonymous connection timeout on fd: " + std::to_string(fd_to_close));
+                
+                // Remove socket 
+                close(fd_to_close);
+                FD_CLR(fd_to_close, &current_sockets);
+            
+                it = unauth_sockets.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    bool Server::process_msg(int client_fd, std::string msg) {
+        // Validate protocol
+        std::string header = Protocol::PROTOCOL_HEADER;
+
+        if (msg.size() < header.size() || msg.substr(0, header.size()) != header) {
+            // Remove user in case of invalid protocol
+            LOG_WARNING("Invalid protocol header from fd: " + std::to_string(client_fd));
+
+            std::string err_msg = "Error: Invalid protocol\n";
+
+            send(client_fd, err_msg.c_str(), err_msg.size(), 0);
+            close(client_fd);
+            FD_CLR(client_fd, &current_sockets);
+            UserManager::remove_user(client_fd);
+            unauth_sockets.erase(client_fd);
+            return false;
+        }
+
+        // Remove and split msg
+        std::string payload = msg.substr(header.size());
+        std::vector<std::string> parts = Utility::split(payload, '|');
+        if (parts.size() < Protocol::MIN_PARTS) return false;
+
+        std::shared_ptr<User> user = UserManager::get_user_by_fd(client_fd);
+        if (user == nullptr) {
+            // Unknown user - only LOGIN|<param>
+            if (parts[Protocol::COMMAND_POS] == "LOGIN") {
+                int rsp_code = UserManager::handle_login(client_fd, parts[Protocol::NICK_PARAM_POS]);
+
+                if (rsp_code < Protocol::LOGIN_FULL_SERVER) {
+                    unauth_sockets[client_fd].joined_time = std::chrono::steady_clock::now();
+                } else {
+                    unauth_sockets.erase(client_fd);
+                }
+
+                // Send response
+                std::string rsp_msg = Protocol::PROTOCOL_HEADER + "LOGIN|" + std::to_string(rsp_code) + "\n";
+                send(client_fd, rsp_msg.c_str(), rsp_msg.size(), 0);
+            }
+        } else {
+            // Already Logged User
+            // TODO: implement
+            LOG_INFO("Still in progress");
+        } 
+
+        return true;
     }
 }

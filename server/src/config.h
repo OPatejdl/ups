@@ -23,15 +23,17 @@ namespace Config {
     inline constexpr const char* LOGS_FOLDER = "../logs";
     inline constexpr const char* LOGGER_PATH = "../logs/server.log";
 
-    // --- Protocol Setup ---
-    inline constexpr std::string_view PROTOCOL_HEADER = "OP23|";
+    // --- Allowed Timestemps ---
     inline constexpr int ALLOWED_TIME_SEC = 300;
-    inline constexpr int DISCONNECTED_USER_SOCKET = -1;
-    inline constexpr int AUTH_TIMEOUT = 15;
+    inline constexpr int AUTH_TIMEOUT = 30;
 
     // --- Select Setup ---
-    inline constexpr int SEC_TIME = 10;
+    inline constexpr int SEC_TIME = 5;
     inline constexpr int MSEC_TIME = 0;
+
+    // --- Nickname Setup ---
+    inline constexpr int MIN_NICK_SIZE = 4;
+    inline constexpr int MAX_NICK_SIZE = 12;
 }
 
 #endif
