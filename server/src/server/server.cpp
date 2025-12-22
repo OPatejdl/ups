@@ -25,10 +25,14 @@ namespace MyServer {
     * Main loop of server 
     */
     void Server::run_server() {
+        struct timeval tv;
+        tv.tv_sec = Config::SEC_TIME;
+        tv.tv_usec = Config::MSEC_TIME;
+
         while(Utility::server_running) {
             ready_sockets = current_sockets;
 
-            return_value = select(FD_SETSIZE, &ready_sockets, NULL, NULL, NULL);
+            return_value = select(FD_SETSIZE, &ready_sockets, NULL, NULL, &tv);
             if (return_value < 0) {
                 
                 // Check if error was not caused by Ctrl+C
@@ -38,6 +42,10 @@ namespace MyServer {
 
                 LOG_ERROR("Select failed");
                 break;
+            } else {
+                // Check cleanups
+                UserManager::cleanup_users(std::chrono::seconds(Config::ALLOWED_TIME_SEC));
+                cleanup_unauth_sockets();
             }
 
             for (fd = 0; fd < FD_SETSIZE; fd++) {
@@ -54,7 +62,7 @@ namespace MyServer {
                     new_client_connection();
                 }
                 else {
-                    LOG_INFO("Work in progress");
+                    handle_client_data();
                 }
             }
         }
@@ -98,21 +106,85 @@ namespace MyServer {
     }
 
     void Server::new_client_connection() {
-        if (UserManaging::UserManager::add_new_user(client_socket)) {
-            // add successfully
-            FD_SET(client_socket, &current_sockets);
-            LOG_INFO("New client connected: " + std::to_string(client_socket));
+        FD_SET(client_socket, &current_sockets);
 
-            msg = "Welcome to server!";
-            send(client_socket, msg.c_str(), msg.size(), 0);
-        } else {
-            // Excited total amount of clients
-            LOG_WARNING("Full Server \n\t Unable to add new client:" + std::to_string(client_socket) + "was not accepted!");
-                        
-            msg = "Server is currently full. Try again later";
+        unauth_sockets[client_socket] = std::chrono::steady_clock::now();
+
+        LOG_INFO("New client socket connected on fd: " + std::to_string(client_socket));
+
+        msg = PROTOCOL_HEADER + "AUTH|1";
+        send(client_socket, msg.c_str(), msg.size(), 0);
+        // if (UserManager::add_new_user(client_socket)) {
+        //     // add successfully
+        //     FD_SET(client_socket, &current_sockets);
+        //     LOG_INFO("New client connected: " + std::to_string(client_socket));
+
+        //     msg = "Welcome to server!";
+        //     send(client_socket, msg.c_str(), msg.size(), 0);
+        // } else {
+        //     // Excited total amount of clients
+        //     LOG_WARNING("Full Server \n\t Unable to add new client:" + std::to_string(client_socket) + "was not accepted!");
             
-            send(client_socket, msg.c_str(), msg.size(), 0);
-            close(client_socket);
+        //     msg = "Server is currently full. Try again later";
+            
+        //     send(client_socket, msg.c_str(), msg.size(), 0);
+        //     close(client_socket);
+        // }
+    }
+
+    void Server::handle_client_data() {
+        memset(buffer, 0, Config::MAX_BUFFER_SIZE);
+        int bytes_recv = recv(fd, buffer, Config::MAX_BUFFER_SIZE, 0);
+
+        if (bytes_recv <= 0) {
+            handle_disconnection();
+            return;
+        }
+
+        std::string data(buffer, bytes_recv);
+        std::string_view header = Config::PROTOCOL_HEADER;
+
+        // Check invalid msg
+        if (data.size() < header.size() || data.substr(0, header.size()) != header) {
+            // Remove user in case of invalid protocol
+            LOG_WARNING("Invalid protocol header from fd: " + std::to_string(fd));
+
+            std::string err_msg = "Error: Invalid protocol \n";
+
+            send(fd, err_msg.c_str(), err_msg.size(), 0);
+            close(fd);
+            FD_CLR(fd, &current_sockets);
+            UserManager::remove_user(fd);
+            return;
+        }
+
+        std::string rest_msg = data.substr(header.size());
+    }
+}
+
+void Server::handle_disconnection() {
+    UserManager::disconnect_user(fd);
+    close(fd);
+    FD_CLR(fd, &current_sockets);
+}
+
+void Server::cleanup_unauth_sockets() {
+    auto now = std::chrono:steady_clock::now();
+    auto timeout = std::chrono:seconds(Config::AUTH_TIMEOUT);
+
+    for (auto it = unauth_sockets.begin(); it != unauth_sockets.end(); ) {
+        // Check timeout
+        if (now - it->second > timeout) {
+            int fd_to_close = it->first;
+            LOG_WARNING("Anonymous connection timeout on fd: " + std::to_string(fd_to_close));
+            
+            // Remove socket 
+            close(fd_to_close);
+            FD_CLR(fd_to_close, &current_sockets);
+        
+            it = unauth_sockets.erase(it);
+        } else {
+            ++it;
         }
     }
 }

@@ -10,6 +10,8 @@
 #include <iostream>
 #include <string.h>
 #include <cstdlib>
+#include <chrono>
+#include <map>
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -37,6 +39,7 @@ namespace MyServer {
             socklen_t addr;
             fd_set current_sockets, ready_sockets;
             std::string msg;
+            std::map<int, std::chrono::steady_clock::time_point> unauth_sockets;
 
             // Init functions
             void create_server_socket();
@@ -45,6 +48,11 @@ namespace MyServer {
 
             // Function for server run
             void new_client_connection();
+            void handle_client_data();
+            void handle_disconnection();
+
+            // Cleanup functions
+            void cleanup_unauth_sockets();
     };
 
 };
