@@ -1,5 +1,5 @@
-#ifndef EXCEPTIONS_H
-#define EXCEPTIONS_H
+#ifndef EXCEPTIONS_HPP
+#define EXCEPTIONS_HPP
 
 #include "../utility/utility.h"
 

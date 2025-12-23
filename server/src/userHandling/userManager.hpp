@@ -1,5 +1,5 @@
-#ifndef USER_MANAGER_H
-#define USER_MANAGER_H
+#ifndef USER_MANAGER_HPP
+#define USER_MANAGER_HPP
 
 #include <vector>
 #include <memory>

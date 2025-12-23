@@ -1,5 +1,5 @@
-#ifndef __SERVER__
-#define __SERVER__
+#ifndef __SERVER__HPP
+#define __SERVER__HPP
 
 #include "../utility/utility.h"
 #include "../config.h"
