@@ -1,12 +1,12 @@
 #ifndef __SERVER__HPP
 #define __SERVER__HPP
 
-#include "../utility/utility.h"
-#include "../config.h"
-#include "../logger/logger.h"
-#include "../userHandling/userManager.h"
-#include "../userHandling/user.h"
-#include "../exceptions/exceptions.h"
+#include "../utility/utility.hpp"
+#include "../config.hpp"
+#include "../logger/logger.hpp"
+#include "../userHandling/userManager.hpp"
+#include "../userHandling/user.hpp"
+#include "../exceptions/exceptions.hpp"
 #include "../protocolConfig.hpp"
 
 #include <iostream>

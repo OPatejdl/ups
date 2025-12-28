@@ -1,7 +1,7 @@
 #ifndef EXCEPTIONS_HPP
 #define EXCEPTIONS_HPP
 
-#include "../utility/utility.h"
+#include "../utility/utility.hpp"
 
 #include <stdexcept>
 #include <string>

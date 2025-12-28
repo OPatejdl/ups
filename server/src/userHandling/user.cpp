@@ -1,4 +1,4 @@
-#include "user.h"
+#include "user.hpp"
 
 User::User(int socket_fd, const std::string& nick)
   : fd_socket(socket_fd),

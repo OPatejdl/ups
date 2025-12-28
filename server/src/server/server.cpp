@@ -1,4 +1,4 @@
-#include "server.h"
+#include "server.hpp"
 
 namespace MyServer {
 
@@ -223,9 +223,9 @@ namespace MyServer {
                 int rsp_code = UserManager::handle_login(client_fd, parts[Protocol::NICK_PARAM_POS]);
 
                 if (rsp_code < Protocol::LOGIN_FULL_SERVER) {
-                    unauth_sockets[client_fd].joined_time = std::chrono::steady_clock::now();
-                } else {
                     unauth_sockets.erase(client_fd);
+                } else {
+                    unauth_sockets[client_fd].joined_time = std::chrono::steady_clock::now();
                 }
 
                 // Send response

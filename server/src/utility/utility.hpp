@@ -2,9 +2,9 @@
 #define UTILITY_HPP
 
 #include <csignal>
-#include "../logger/logger.h"
-#include "../config.h"
-#include "../exceptions/exceptions.h"
+#include "../logger/logger.hpp"
+#include "../config.hpp"
+#include "../exceptions/exceptions.hpp"
 #include <iostream>
 #include <cstdlib>
 #include <string>

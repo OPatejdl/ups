@@ -1,4 +1,4 @@
-#include "exceptions.h"
+#include "exceptions.hpp"
 
 namespace MyExceptions {
 

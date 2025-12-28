@@ -4,9 +4,9 @@
 #include <vector>
 #include <memory>
 #include <chrono>
-#include "user.h"
-#include "../utility/utility.h"
-#include "../config.h"
+#include "user.hpp"
+#include "../utility/utility.hpp"
+#include "../config.hpp"
 #include "../protocolConfig.hpp"
 
 

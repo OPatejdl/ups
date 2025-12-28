@@ -1,8 +1,8 @@
-#include "utility/utility.h"
-#include "config.h"
-#include "logger/logger.h"
-#include "server/server.h"
-#include "exceptions/exceptions.h"
+#include "utility/utility.hpp"
+#include "config.hpp"
+#include "logger/logger.hpp"
+#include "server/server.hpp"
+#include "exceptions/exceptions.hpp"
 
 #include <iostream>
 #include <string>

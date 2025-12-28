@@ -1,6 +1,6 @@
-#include "logger.h"
-#include "../config.h"
-#include "../utility/utility.h"
+#include "logger.hpp"
+#include "../config.hpp"
+#include "../utility/utility.hpp"
 #include <iostream>
 #include <filesystem>
 #include <chrono>
