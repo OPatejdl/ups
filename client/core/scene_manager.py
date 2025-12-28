@@ -17,6 +17,7 @@ from core.constants import (
 )
 from scenes.login import LoginScene
 from scenes.lobby import LobbyScene
+from net.sockets import NetworkClient
 
 
 class User:
@@ -32,17 +33,22 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        # Network setup
+        self.network = NetworkClient()
+        self.network.loginResult.connect(self.onLoginResult)
+        self.network.error.connect(lambda err: print(f"Connection Error: {err}"))
+
         self.scene_manager = QStackedWidget(self)
 
-        # --- Login Scene ---
+        # Login Scene 
         self.login_scene = LoginScene()
         self.scene_manager.addWidget(self.login_scene)
         self.login_scene.loginRequest.connect(self.loginRequestHandler)
 
-        # --- Lobby Scene ---
+        # Lobby Scene
         self.lobby_scene = LobbyScene()
         self.scene_manager.addWidget(self.lobby_scene)
-        self.lobby_scene.findGameRequest.connect(self.findGameRequestHandler)
+        # self.lobby_scene.findGameRequest.connect(self.findGameRequestHandler)
         self.lobby_scene.exitRequest.connect(self.exitRequestHandler)
 
         self._setUI()
@@ -74,15 +80,17 @@ class MainWindow(QMainWindow):
             port: 
                 int; represent PORT, to which user want to connect
         """
-        self.lobby_scene.updateInfo(username, "/".join((ip, str(port))))
-        self.scene_manager.setCurrentWidget(self.lobby_scene)
+        self.current_nick = username
+        self.current_ip = ip
+        self.current_port = port
+        self.network.connectToServer(ip, port, username)
 
-    @pyqtSlot()
-    def findGameRequestHandler(self):
-        """
-        Function handles findGameRequest signal emitted by findGame_btn in the Lobby scene
-        """
-        print("Finding Game")
+    def onLoginResult(self, code):
+        if (code == 0 or code == 1):
+            self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
+            self.scene_manager.setCurrentWidget(self.lobby_scene)
+        else:
+            print(f"Login failed with code {code}")
 
     @pyqtSlot()
     def exitRequestHandler(self):
