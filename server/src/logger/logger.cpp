@@ -58,6 +58,8 @@ namespace MyLogger {
                 return "INFO";
             case TYPE::ERROR:
                 return "ERROR";
+            case TYPE::WARNING:
+                return "WARNING";
             default:
                 return "";
         }
