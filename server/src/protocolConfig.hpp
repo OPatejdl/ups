@@ -8,7 +8,7 @@ namespace Protocol {
     // --- General setup ---
     inline const std::string PROTOCOL_HEADER = "OP23|";
     inline constexpr int DISCONNECTED_USER_SOCKET = -1;
-    inline constexpr int MIN_PARTS = 2;
+    inline constexpr int MIN_PARTS = 1;
     inline constexpr int COMMAND_POS = 0;
 
     // --- LOGIN Responses ---
@@ -19,6 +19,19 @@ namespace Protocol {
     inline constexpr int LOGIN_NICK_DUPLICITY = 3;
     inline constexpr int LOGIN_MAX_NICK_LEN = 4;
     inline constexpr int LOGIN_MIN_NICK_LEN = 5;
+
+    // --- ROOM Responses ---
+    // Turn response
+    inline constexpr int VALID_MOVE = 0;
+    inline constexpr int NOT_YOUR_TURN = 1;
+    inline constexpr int INVALID_MOVE = 2;
+    inline constexpr int OCCUPIED_FIELD = 3;
+    inline constexpr int PLAYER_NOT_BELONG = 4;
+    inline constexpr int GAME_NOT_RUN = 5;
+
+    // Result response
+    inline constexpr int WIN = 0;
+    inline constexpr int DRAW = 1;
 }
 
 #endif

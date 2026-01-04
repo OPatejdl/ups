@@ -114,22 +114,6 @@ namespace MyServer {
 
         msg = Protocol::PROTOCOL_HEADER + "AUTH|1\n";
         send(client_socket, msg.c_str(), msg.size(), 0);
-        // if (UserManager::add_new_user(client_socket)) {
-        //     // add successfully
-        //     FD_SET(client_socket, &current_sockets);
-        //     LOG_INFO("New client connected: " + std::to_string(client_socket));
-
-        //     msg = "Welcome to server!";
-        //     send(client_socket, msg.c_str(), msg.size(), 0);
-        // } else {
-        //     // Excited total amount of clients
-        //     LOG_WARNING("Full Server \n\t Unable to add new client:" + std::to_string(client_socket) + "was not accepted!");
-            
-        //     msg = "Server is currently full. Try again later";
-            
-        //     send(client_socket, msg.c_str(), msg.size(), 0);
-        //     close(client_socket);
-        // }
     }
 
     void Server::handle_client_data() {
@@ -165,12 +149,39 @@ namespace MyServer {
     }
 
     void Server::handle_disconnection(int fd_disconnected) {
+
+        LOG_INFO("Handling disconnection for fd: " + std::to_string(fd_disconnected));
+
+        // Check rooms
+        auto room = RoomManager::get_room_by_user_fd(fd_disconnected);
+        
+        if (room) {
+            auto winner = room->handle_player_disconnect(fd_disconnected);
+
+            if (winner) {
+                std::string msg = Protocol::PROTOCOL_HEADER + "RESULT|WIN|Opponent disconnected\n";
+                send(winner->fd_socket, msg.c_str(), msg.size(), 0);
+                
+                LOG_INFO("Sent default win notification to " + winner->nickname);
+            }
+        }
+
         UserManager::disconnect_user(fd_disconnected);
         unauth_sockets.erase(fd_disconnected);
 
         close(fd_disconnected);
         FD_CLR(fd_disconnected, &current_sockets);
     }
+
+    void Server::remove_client(int client_fd) {
+        std::string err_msg = "Error: Invalid protocol\n";
+
+        send(client_fd, err_msg.c_str(), err_msg.size(), 0);
+        close(client_fd);
+        FD_CLR(client_fd, &current_sockets);
+        UserManager::remove_user(client_fd);
+        unauth_sockets.erase(client_fd);
+    };
 
     void Server::cleanup_unauth_sockets() {
         auto now = std::chrono::steady_clock::now();
@@ -200,16 +211,10 @@ namespace MyServer {
         if (msg.size() < header.size() || msg.substr(0, header.size()) != header) {
             // Remove user in case of invalid protocol
             LOG_WARNING("Invalid protocol header from fd: " + std::to_string(client_fd));
-
-            std::string err_msg = "Error: Invalid protocol\n";
-
-            send(client_fd, err_msg.c_str(), err_msg.size(), 0);
-            close(client_fd);
-            FD_CLR(client_fd, &current_sockets);
-            UserManager::remove_user(client_fd);
-            unauth_sockets.erase(client_fd);
+            remove_client(client_fd);
             return false;
         }
+
 
         // Remove and split msg
         std::string payload = msg.substr(header.size());
@@ -217,27 +222,136 @@ namespace MyServer {
         if (parts.size() < Protocol::MIN_PARTS) return false;
 
         std::shared_ptr<User> user = UserManager::get_user_by_fd(client_fd);
+        std::string command = parts[Protocol::COMMAND_POS];
+
         if (user == nullptr) {
             // Unknown user - only LOGIN|<param>
-            if (parts[Protocol::COMMAND_POS] == "LOGIN") {
-                int rsp_code = UserManager::handle_login(client_fd, parts[Protocol::NICK_PARAM_POS]);
-
-                if (rsp_code < Protocol::LOGIN_FULL_SERVER) {
-                    unauth_sockets.erase(client_fd);
-                } else {
-                    unauth_sockets[client_fd].joined_time = std::chrono::steady_clock::now();
-                }
-
-                // Send response
-                std::string rsp_msg = Protocol::PROTOCOL_HEADER + "LOGIN|" + std::to_string(rsp_code) + "\n";
-                send(client_fd, rsp_msg.c_str(), rsp_msg.size(), 0);
+            if (command == "LOGIN") {
+                return handle_login(client_fd, parts);
             }
         } else {
-            // Already Logged User
-            // TODO: implement
-            LOG_INFO("Still in progress");
+            // Set activity
+            user->last_active = std::chrono::steady_clock::now();
+
+            if (command == "FIND") {
+                handle_find(client_fd, user);
+            } else if (command == "MOVE") {
+                handle_move(client_fd, user, parts);
+            }
+            
         } 
+
+        return false;
+    }
+
+    // Function for certain types of msg handling
+    bool Server::handle_login(int client_fd, const std::vector<std::string>& parts) {
+        // Validation of parameters
+        if (parts.size() <= Protocol::NICK_PARAM_POS) {
+            remove_client(client_fd);
+            return false;
+        }
+
+        int rsp_code = UserManager::handle_login(client_fd, parts[Protocol::NICK_PARAM_POS]);
+
+        if (rsp_code < Protocol::LOGIN_FULL_SERVER) {
+            unauth_sockets.erase(client_fd);
+        } else {
+            unauth_sockets[client_fd].joined_time = std::chrono::steady_clock::now();
+        }
+
+        // Send response
+        std::string rsp_msg = Protocol::PROTOCOL_HEADER + "LOGIN|" + std::to_string(rsp_code) + "\n";
+        send(client_fd, rsp_msg.c_str(), rsp_msg.size(), 0);
 
         return true;
     }
+
+    bool Server::handle_find(int client_fd, std::shared_ptr<User> user) {
+        LOG_INFO("User with fd: " + std::to_string(client_fd) + " tries to find a game");
+        if (user->state == USER_STATE::IN_GAME) return false;
+
+        auto room = RoomManager::join_waiting_room(user);
+
+        if (!room) {
+            std::string err = Protocol::PROTOCOL_HEADER + "ROOM_ERROR\n";
+            send(client_fd, err.c_str(), err.size(), 0);
+            return true;
+        }
+
+        // New game if full room
+        if (room->state == ROOM_STATE::PLAYING) {
+            auto players = room->get_players();
+            
+            // MSG to both players - GAME|<start_symbol>|<opponent nick>|<board>
+            std::string msg1 = Protocol::PROTOCOL_HEADER + "GAME|START_X|" + players[1]->nickname + "|" + room->get_board_string() + "\n";
+            send(players[0]->fd_socket, msg1.c_str(), msg1.size(), 0);
+
+            std::string msg2 = Protocol::PROTOCOL_HEADER + "GAME|START_O|" + players[0]->nickname + "|" + room->get_board_string() + "\n";
+            send(players[1]->fd_socket, msg2.c_str(), msg2.size(), 0);
+            
+            LOG_INFO("Match started in Room " + std::to_string(room->id));
+        } else {
+            // Waiting for another player
+            std::string wait_msg = Protocol::PROTOCOL_HEADER + "WAITING\n";
+            send(client_fd, wait_msg.c_str(), wait_msg.size(), 0);
+        }
+
+        return true;
+    }
+
+    bool Server::handle_move(int client_fd, std::shared_ptr<User> user, const std::vector<std::string>& parts) {
+        if (parts.size() < 3) {
+            remove_client(client_fd); // TODO: implement logic for removed client in the game
+            return false;
+        }
+
+        auto room = RoomManager::get_room_by_user_fd(client_fd);
+        if (!room) return false; // Player not in the room
+
+        try {
+            int x = std::stoi(parts[1]);
+            int y = std::stoi(parts[2]);
+
+            // Process move - returns game_rsp
+            std::string game_response = room->process_move(client_fd, x, y);
+            
+            // Error check
+            bool is_error = (game_response.find("|" + std::to_string(Protocol::OCCUPIED_FIELD)) != std::string::npos) ||
+                            (game_response.find("|" + std::to_string(Protocol::NOT_YOUR_TURN)) != std::string::npos) ||
+                            (game_response.find("|" + std::to_string(Protocol::INVALID_MOVE)) != std::string::npos) ||
+                            (game_response.find("|" + std::to_string(Protocol::PLAYER_NOT_BELONG)) != std::string::npos) ||
+                            (game_response.rfind("ERROR", 0) == 0);
+
+            if (is_error) {
+                // Msg only for sender
+                std::string full_msg = Protocol::PROTOCOL_HEADER + game_response + "\n";
+                send(client_fd, full_msg.c_str(), full_msg.size(), 0);
+            } 
+            else {
+                // Valid move or game finished - inform both players
+                std::string full_msg;
+
+                if (game_response.find("RESULT") == std::string::npos) {
+                    std::string next_turn_sym = std::to_string(room->get_current_turn_symbol());
+                    full_msg = Protocol::PROTOCOL_HEADER + game_response + "|" + next_turn_sym + "\n";
+                } else {
+                    // Game finished
+                    full_msg = Protocol::PROTOCOL_HEADER + game_response + "\n";
+                }
+
+                auto players = room->get_players();
+                for (auto& p : players) {
+                    send(p->fd_socket, full_msg.c_str(), full_msg.size(), 0);
+                }
+            }
+
+            return true;
+        } catch (const std::exception& e) {
+            LOG_WARNING("Invalid integer format in MOVE command from fd: " + std::to_string(client_fd));
+            return false;
+        }
+
+    }
+
 }

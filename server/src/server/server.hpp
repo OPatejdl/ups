@@ -8,6 +8,8 @@
 #include "../userHandling/user.hpp"
 #include "../exceptions/exceptions.hpp"
 #include "../protocolConfig.hpp"
+#include "../roomHandling/roomManager.hpp"
+#include "../roomHandling/room.hpp"
 
 #include <iostream>
 #include <string.h>
@@ -56,7 +58,13 @@ namespace MyServer {
             void new_client_connection();
             void handle_client_data();
             void handle_disconnection(int fd_disconnected);
+            void remove_client(int fd);
             bool process_msg(int client_fd, std::string msg);
+
+            // Function for certain types of msg handling
+            bool handle_login(int client_fd, const std::vector<std::string>& parts);
+            bool handle_find(int client_fd, std::shared_ptr<User> user);
+            bool handle_move(int client_fd, std::shared_ptr<User> user, const std::vector<std::string>& parts);
 
             // Cleanup functions
             void cleanup_unauth_sockets();

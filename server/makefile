@@ -14,7 +14,9 @@ SRCS = src/main.cpp \
 	src/utility/utility.cpp \
 	src/userHandling/user.cpp \
 	src/userHandling/userManager.cpp \
-	src/server/server.cpp
+	src/server/server.cpp \
+	src/roomHandling/room.cpp \
+	src/roomHandling/roomManager.cpp
 
 OBJ = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 
