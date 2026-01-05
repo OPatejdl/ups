@@ -15,12 +15,30 @@ class NetworkClient(QObject):
     """
     Class representing the network connection
     """
+
+    # --- Signals ---
     connected = pyqtSignal()
     disconnected = pyqtSignal()
     error = pyqtSignal(str)
-    loginResult = pyqtSignal(int)
 
+    # Login & Status
+    loginResult = pyqtSignal(int) # login_code
+    waiting = pyqtSignal()
+    stateSync = pyqtSignal()
+
+    # Game
+    gameStarted = pyqtSignal(str, str, str) # symbol, opponent, board
+    gamePaused = pyqtSignal()
+    gameResumed = pyqtSignal()
+    turnUpdate = pyqtSignal(str, str) # board, next_turn
+    gameResult = pyqtSignal(str, str) # result_code, winner
+
+
+    # --- Functions ---
     def __init__(self):
+        """
+        Constructor of NetworkClient class
+        """
         super().__init__()
         self.socket = None
         self.running = False
@@ -77,16 +95,94 @@ class NetworkClient(QObject):
 
         payload = msg[len(self.header):]
         parts = payload.split(SPLITTER)
+        cmd = parts[0]
 
         # Authentication check
-        if parts[0] == "AUTH" and parts[1] == "1":
+        if cmd == "AUTH" and parts[1] == "1":
             login_msg = f"{self.header}LOGIN{SPLITTER}{nickname}\n"
             self.socket.sendall(login_msg.encode('utf-8'))
 
         # Response for login
-        elif parts[0] == "LOGIN":
+        elif cmd == "LOGIN":
             res_code = int(parts[1])
             self.loginResult.emit(res_code)
+
+        # Waiting room
+        elif cmd == "WAITING":
+            self.waiting.emit()
+
+        elif cmd == "GAME":
+            sub_cmd = parts[1]
+            if sub_cmd.startswith("START_"):
+                # Format: GAME|<start_symbol>|<opponent_nick>|<board>
+                my_symbol = sub_cmd.split("_")[1]
+                opponent = parts[2]
+                board = parts[3] if len(parts) > 3 else " "*9
+                self.gameStarted.emit(my_symbol, opponent, board)
+            
+            elif sub_cmd == "PAUSED":
+                self.gamePaused.emit()
+            
+            elif sub_cmd == "RESUMED":
+                self.gameResumed.emit()
+
+        elif cmd == "TURN":
+            # Format: TURN|VALID_MOVE|<board>|<next_turn>
+            code = parts[1]
+            if code == "VALID_MOVE" or code == "0": 
+                board = parts[2]
+                next_turn = parts[3]
+                self.turnUpdate.emit(board, next_turn)
+
+        elif cmd == "RESULT":
+            # Format: RESULT|WIN|<board>|<winner> OR RESULT|DRAW|<board>
+            res_code = "WIN" if parts[1] == "0" else "DRAW"
+            board = parts[2]
+            winner = parts[3] if len(parts) > 3 else ""
+            
+            # Update board one last time
+            self.turnUpdate.emit(board, "-") 
+            self.gameResult.emit(res_code, winner)
+
+        elif cmd == "PONG":
+            # Format: PONG|GAME|<symbol>|<board>|<turn>|<opponent>
+            # OR: PONG|LOBBY or PONG|WAITING
+            state = parts[1]
+            data = {}
+            if state == "GAME":
+                data = {
+                    "symbol": parts[2],
+                    "board": parts[3],
+                    "turn": parts[4],
+                    "opponent": parts[5] if len(parts) > 5 else "Unknown"
+                }
+            self.stateSync.emit(state, data)
+
+    def sendPing(self):
+        """
+        Sends ping msg to server to find out the current state of user
+        """
+        if self.running and self.socket:
+            try:
+                msg = f"{self.header}PING\n"
+                self.socket.sendall(msg.encode('utf-8'))
+            except:
+                self.error.emit("Failed to send PING")
+
+    def sendMove(self, x, y):
+        """
+        Sends move msg to server
+
+        Args:
+            x: Coordinate of X on the game board
+            y: Coordinate of Y on the game board
+        """
+        if self.running and self.socket:
+            try:
+                msg = f"{self.header}MOVE|{x}|{y}\n"
+                self.socket.sendall(msg.encode('utf-8'))
+            except:
+                self.error.emit("Failed to send MOVE")
 
     def disconnect(self):
         """

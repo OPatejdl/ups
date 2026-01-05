@@ -2,8 +2,6 @@
 Filename: result.py
 Author: Ondrej Patejdl
 Contact: opatejdl@students.zcu.cz
-Date: 2025-10-02
-Version: 0.1.0
 Description: This script defines result scene of the game
 """
 

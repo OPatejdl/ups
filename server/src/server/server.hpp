@@ -65,6 +65,7 @@ namespace MyServer {
             bool handle_login(int client_fd, const std::vector<std::string>& parts);
             bool handle_find(int client_fd, std::shared_ptr<User> user);
             bool handle_move(int client_fd, std::shared_ptr<User> user, const std::vector<std::string>& parts);
+            bool handle_ping(int client_fd, std::shared_ptr<User> user);
 
             // Cleanup functions
             void cleanup_unauth_sockets();

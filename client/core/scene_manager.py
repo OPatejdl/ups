@@ -17,15 +17,12 @@ from core.constants import (
 )
 from scenes.login import LoginScene
 from scenes.lobby import LobbyScene
+from scenes.waiting import WaitingScene
+from scenes.game import GameScene
 from net.sockets import NetworkClient
 
 
-class User:
-    """
-    Class representing a user of a game
-        - Stores user's nick and state
-    """
-    ...
+
 
 
 class MainWindow(QMainWindow):
@@ -48,8 +45,29 @@ class MainWindow(QMainWindow):
         # Lobby Scene
         self.lobby_scene = LobbyScene()
         self.scene_manager.addWidget(self.lobby_scene)
-        # self.lobby_scene.findGameRequest.connect(self.findGameRequestHandler)
+        self.lobby_scene.findGameRequest.connect(self.findGameRequestHandler)
         self.lobby_scene.exitRequest.connect(self.exitRequestHandler)
+
+        # Waiting Scene
+        self.waiting_scene = WaitingScene()
+        self.scene_manager.addWidget(self.waiting_scene)
+
+        # Game Scene
+        self.game_scene = GameScene()
+        self.scene_manager.addWidget(self.game_scene)
+        self.game_scene.moveRequest.connect(self.network.sendMove)
+        self.game_scene.backToLobbyRequest.connect(self.onBackToLobby)
+
+        # Network Logic Connections
+        self.network.waiting.connect(self.onWaiting)
+        self.network.gameStarted.connect(self.onGameStarted)
+        self.network.stateSync.connect(self.onStateSync)
+
+        # In-Game Updates
+        self.network.turnUpdate.connect(self.game_scene.updateBoard)
+        self.network.gamePaused.connect(self.game_scene.setPaused)
+        self.network.gameResumed.connect(self.game_scene.setResumed)
+        self.network.gameResult.connect(self.game_scene.handleResult)
 
         self._setUI()
 
@@ -89,6 +107,10 @@ class MainWindow(QMainWindow):
         if (code == 0 or code == 1):
             self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
             self.scene_manager.setCurrentWidget(self.lobby_scene)
+        elif code == 1:
+            # Reconnect successful
+            print("Reconnected! Sending PING to sync state...")
+            self.network.sendPing()
         else:
             print(f"Login failed with code {code}")
 
@@ -98,3 +120,40 @@ class MainWindow(QMainWindow):
         Function handles exitRequest signal emitted by exit_btn in the Lobby scene
         """
         self.scene_manager.setCurrentWidget(self.login_scene)
+        self.network.disconnect()
+
+    @pyqtSlot()
+    def findGameRequestHandler(self):
+        # Send FIND command
+        if self.network.running:
+            self.network.socket.sendall(f"{self.network.header}FIND\n".encode('utf-8'))
+
+    def onWaiting(self):
+        """Called when server puts user in waiting room"""
+        self.scene_manager.setCurrentWidget(self.waiting_scene)
+
+    def onGameStarted(self, symbol, opponent, board):
+        """Called when match starts"""
+        self.game_scene.initializeGame(symbol, opponent, board)
+        self.scene_manager.setCurrentWidget(self.game_scene)
+
+    def onStateSync(self, state, data):
+        """Called on PONG response (reconnect logic)"""
+        if state == "LOBBY":
+            self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
+            self.scene_manager.setCurrentWidget(self.lobby_scene)
+            
+        elif state == "WAITING":
+            self.scene_manager.setCurrentWidget(self.waiting_scene)
+            
+        elif state == "GAME":
+            self.game_scene.syncGame(
+                data["symbol"], 
+                data["board"], 
+                data["turn"], 
+                data["opponent"]
+            )
+            self.scene_manager.setCurrentWidget(self.game_scene)
+
+    def onBackToLobby(self):
+        self.scene_manager.setCurrentWidget(self.lobby_scene)

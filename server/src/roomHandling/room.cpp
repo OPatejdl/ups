@@ -126,23 +126,19 @@ std::shared_ptr<User> Room::handle_player_disconnect(int fd) {
         return nullptr;
     }
 
-    // Game runs - Contmutation TODO
+    // Game runs
     if (state == ROOM_STATE::PLAYING) {
-        state = ROOM_STATE::FINISHED;
 
-        std::shared_ptr<User> winner = nullptr;
-
-        // Find opponent
+        std::shared_ptr<User> opponent = nullptr;
         for (const auto& p : players) {
             if (p->fd_socket != fd) {
-                winner = p;
-                p->state = USER_STATE::LOBBY; 
+                opponent = p;
                 break;
             }
         }
-        
-        LOG_INFO("Room " + std::to_string(id) + " -> Player disconnected during game. Opponent wins by default.");
-        return winner; // return user to inform
+
+        LOG_INFO("Room " + std::to_string(id) + " -> Player disconnected. Game PAUSED.");
+        return opponent;
     }
 
     return nullptr;

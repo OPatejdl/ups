@@ -156,13 +156,12 @@ namespace MyServer {
         auto room = RoomManager::get_room_by_user_fd(fd_disconnected);
         
         if (room) {
-            auto winner = room->handle_player_disconnect(fd_disconnected);
-
-            if (winner) {
-                std::string msg = Protocol::PROTOCOL_HEADER + "RESULT|WIN|Opponent disconnected\n";
-                send(winner->fd_socket, msg.c_str(), msg.size(), 0);
-                
-                LOG_INFO("Sent default win notification to " + winner->nickname);
+            auto opponent = room->handle_player_disconnect(fd_disconnected);
+    
+            // Inform opponent
+            if (opponent && room->state != ROOM_STATE::FINISHED) {
+                std::string msg = Protocol::PROTOCOL_HEADER + "GAME|PAUSED|Opponent disconnected\n";
+                send(opponent->fd_socket, msg.c_str(), msg.size(), 0);
             }
         }
 
@@ -174,9 +173,11 @@ namespace MyServer {
     }
 
     void Server::remove_client(int client_fd) {
+        // Inform client
         std::string err_msg = "Error: Invalid protocol\n";
-
         send(client_fd, err_msg.c_str(), err_msg.size(), 0);
+
+        // Remove client
         close(client_fd);
         FD_CLR(client_fd, &current_sockets);
         UserManager::remove_user(client_fd);
@@ -237,8 +238,9 @@ namespace MyServer {
                 handle_find(client_fd, user);
             } else if (command == "MOVE") {
                 handle_move(client_fd, user, parts);
+            } else if (command == "PONG") {
+                handle_ping(client_fd, user);
             }
-            
         } 
 
         return false;
@@ -333,7 +335,7 @@ namespace MyServer {
                 std::string full_msg;
 
                 if (game_response.find("RESULT") == std::string::npos) {
-                    std::string next_turn_sym = std::to_string(room->get_current_turn_symbol());
+                    std::string next_turn_sym = std::string(1, room->get_current_turn_symbol());
                     full_msg = Protocol::PROTOCOL_HEADER + game_response + "|" + next_turn_sym + "\n";
                 } else {
                     // Game finished
@@ -354,4 +356,55 @@ namespace MyServer {
 
     }
 
+    bool Server::handle_ping(int client_fd, std::shared_ptr<User> user) {
+        std::string pong_msg;
+
+        switch (user->state) {
+            case USER_STATE::WAITING:
+                pong_msg = "PONG|WAITING";
+                break;
+
+            case USER_STATE::IN_GAME: {
+                auto room = RoomManager::get_room_by_user_fd(client_fd);
+                if (room) {
+                    char my_symbol = (room->get_players()[RoomConfig::FIRST_PLAYER]->fd_socket == client_fd) ? 'X' : 'O';
+                    
+                    // Get user nick
+                    std::string opponent_nick = "Unknown";
+                    for (auto& p : room->get_players()) {
+                        if (p->fd_socket != client_fd) opponent_nick = p->nickname;
+                    }
+
+                    pong_msg = "PONG|GAME|" 
+                            + std::string(1, my_symbol) + "|" 
+                            + room->get_board_string() + "|"
+                            + std::string(1, room->get_current_turn_symbol()) + "|"
+                            + opponent_nick;
+                    
+                    // Inform opponent
+                    for(auto& p : room->get_players()) {
+                        if(p->fd_socket != client_fd) {
+                            std::string res_msg = Protocol::PROTOCOL_HEADER + "GAME|RESUMED\n";
+                            send(p->fd_socket, res_msg.c_str(), res_msg.size(), 0);
+                        }
+                    }
+                } else {
+                    // User IN_GAME but game ended
+                    user->state = USER_STATE::CONNECTED;
+                    pong_msg = "PONG|LOBBY";
+                }
+                break;
+            }
+
+            case USER_STATE::CONNECTED:
+            default:
+                pong_msg = "PONG|LOBBY";
+                break;
+        }
+
+        // Send msg
+        std::string full_msg = Protocol::PROTOCOL_HEADER + pong_msg + "\n";
+        send(client_fd, full_msg.c_str(), full_msg.size(), 0);
+        return true;
+        }
 }
