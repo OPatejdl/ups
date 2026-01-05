@@ -24,7 +24,7 @@ class NetworkClient(QObject):
     # Login & Status
     loginResult = pyqtSignal(int) # login_code
     waiting = pyqtSignal()
-    stateSync = pyqtSignal()
+    stateSync = pyqtSignal(str, dict)
 
     # Game
     gameStarted = pyqtSignal(str, str, str) # symbol, opponent, board
@@ -192,3 +192,10 @@ class NetworkClient(QObject):
         if (self.socket):
             self.socket.close()
         self.disconnected.emit()
+
+    def sentFindRequest(self):
+        """
+        Sent find request to server
+        """
+        if self.running:
+            self.socket.sendall(f"{self.header}FIND\n".encode('utf-8'))

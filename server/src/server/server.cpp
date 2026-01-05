@@ -158,10 +158,16 @@ namespace MyServer {
         if (room) {
             auto opponent = room->handle_player_disconnect(fd_disconnected);
     
-            // Inform opponent
+            // Inform opponent if exist
             if (opponent && room->state != ROOM_STATE::FINISHED) {
                 std::string msg = Protocol::PROTOCOL_HEADER + "GAME|PAUSED|Opponent disconnected\n";
                 send(opponent->fd_socket, msg.c_str(), msg.size(), 0);
+            }
+
+            // Delete room if empty
+            if (room->get_players().empty()) {
+                RoomManager::remove_room(room->id);
+                LOG_INFO("Room " + std::to_string(room->id) + " deleted because it is empty.");
             }
         }
 
@@ -238,7 +244,7 @@ namespace MyServer {
                 handle_find(client_fd, user);
             } else if (command == "MOVE") {
                 handle_move(client_fd, user, parts);
-            } else if (command == "PONG") {
+            } else if (command == "PING") {
                 handle_ping(client_fd, user);
             }
         } 
@@ -304,7 +310,6 @@ namespace MyServer {
 
     bool Server::handle_move(int client_fd, std::shared_ptr<User> user, const std::vector<std::string>& parts) {
         if (parts.size() < 3) {
-            remove_client(client_fd); // TODO: implement logic for removed client in the game
             return false;
         }
 

@@ -32,6 +32,12 @@ public:
      */
     static void cleanup_empty_rooms();
 
+    /**
+     * Removes room based on its Id
+     * @param room_id Id of the room
+     */
+    static void remove_room(int room_id);
+
 private:
     static int room_id_counter;     /** Counter for new room Id */
 };

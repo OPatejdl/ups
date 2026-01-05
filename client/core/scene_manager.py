@@ -104,10 +104,10 @@ class MainWindow(QMainWindow):
         self.network.connectToServer(ip, port, username)
 
     def onLoginResult(self, code):
-        if (code == 0 or code == 1):
+        if (code == 0):
             self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
             self.scene_manager.setCurrentWidget(self.lobby_scene)
-        elif code == 1:
+        elif (code == 1):
             # Reconnect successful
             print("Reconnected! Sending PING to sync state...")
             self.network.sendPing()
@@ -124,9 +124,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def findGameRequestHandler(self):
-        # Send FIND command
-        if self.network.running:
-            self.network.socket.sendall(f"{self.network.header}FIND\n".encode('utf-8'))
+        self.network.sentFindRequest()
 
     def onWaiting(self):
         """Called when server puts user in waiting room"""
@@ -139,13 +137,15 @@ class MainWindow(QMainWindow):
 
     def onStateSync(self, state, data):
         """Called on PONG response (reconnect logic)"""
+        print("here I am", state, data)
         if state == "LOBBY":
             self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
             self.scene_manager.setCurrentWidget(self.lobby_scene)
-            
+        
         elif state == "WAITING":
             self.scene_manager.setCurrentWidget(self.waiting_scene)
-            
+            self.network.sentFindRequest()
+        
         elif state == "GAME":
             self.game_scene.syncGame(
                 data["symbol"], 

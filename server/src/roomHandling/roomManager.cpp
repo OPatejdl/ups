@@ -52,3 +52,19 @@ void RoomManager::cleanup_empty_rooms() {
         }
     }
 }
+
+void RoomManager::remove_room(int room_id) {
+    for (auto it = rooms.begin(); it != rooms.end(); ++it) {
+        // Pokud najdeme místnost se shodným ID
+        if ((*it)->id == room_id) {
+            LOG_INFO("Removing room ID: " + std::to_string(room_id));
+            
+            // Remove room
+            rooms.erase(it);
+
+            return;
+        }
+    }
+    
+    LOG_WARNING("Unsuccessful attempt to remove room with ID: " + std::to_string(room_id));
+}
