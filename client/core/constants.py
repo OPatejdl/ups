@@ -2,12 +2,8 @@
 Filename: constants.py
 Author: Ondrej Patejdl
 Contact: opatejdl@students.zcu.cz
-Date: 2025-09-28
-Version: 0.1.0
 Description: This script defines constants used throughout the python scripts
 """
-
-from PyQt6.QtGui import QFont
 
 #######################
 # Titles and text
@@ -26,5 +22,19 @@ LETTER_FONT = "Arial"
 TITLES_SIZE = 20
 LABEL_SIZE = 12
 
-LOGIN_SPACING = 20
+# Game text
+GAME_TEXT_SIZE = 16
+GAME_TEXT_BOLD = "bold"
+BOARD_SPACING = 10
+BOARD_TILE_SIZE = 80
+
+DEFAULT_SPACING = 20
+
+########################
+# Protocol
+
+########################
+# Game constants (3X3 board)
+BOARD_SIZE = 3
+TOTAL_TILES = 9
 

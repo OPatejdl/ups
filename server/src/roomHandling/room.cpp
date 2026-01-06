@@ -23,9 +23,11 @@ bool Room::add_player(std::shared_ptr<User> user) {
             p->state = USER_STATE::IN_GAME; 
         }
         
-        // Player at index 0 always starts
-        turn_index = RoomConfig::FIRST_PLAYER;
+        // Player at index 0 starts
         reset_game();
+        swap_players();
+        turn_index = RoomConfig::FIRST_PLAYER;
+        
         LOG_INFO("Room " + std::to_string(id) + " -> Game started between " + players[RoomConfig::FIRST_PLAYER]->nickname + " and " + players[RoomConfig::SECOND_PLAYER]->nickname);
     }
     return true;
@@ -95,7 +97,10 @@ std::string Room::process_move(int fd, int x, int y) {
         for (auto& p : players) p->state = USER_STATE::RESULT;
 
         LOG_INFO("Room: " + std::to_string(id) + "-> game finished - WINNER is " + this->winner_nickname +"!");
-        return response("RESULT", Protocol::WIN) + "|" + get_board_string() + "|" + this->winner_nickname; 
+        return response("RESULT", Protocol::WIN) +
+                Protocol::SPLITTER + get_board_string() +
+                Protocol::SPLITTER + this->winner_nickname;
+
     } else if (check_draw()) {
         state = ROOM_STATE::FINISHED;
 
@@ -104,7 +109,7 @@ std::string Room::process_move(int fd, int x, int y) {
         for (auto& p : players) p->state = USER_STATE::RESULT;
 
         LOG_INFO("Room: " + std::to_string(id) + "-> game finished - DRAW!");
-        return response("RESULT", Protocol::DRAW) + "|" + get_board_string();
+        return response("RESULT", Protocol::DRAW) + Protocol::SPLITTER + get_board_string();
     }
 
     // Switch turn to the other player
@@ -112,7 +117,7 @@ std::string Room::process_move(int fd, int x, int y) {
     
     // Return success response with updated board
     LOG_INFO("Room: " + std::to_string(id) + "-> player made valid move");
-    return response("TURN", Protocol::VALID_MOVE) + "|" + get_board_string();
+    return response("TURN", Protocol::VALID_MOVE) + Protocol::SPLITTER + get_board_string();
 }
 
 std::string Room::get_board_string() {
@@ -120,7 +125,14 @@ std::string Room::get_board_string() {
 }
 
 void Room::reset_game() {
+    // Clear field
     std::fill(board.begin(), board.end(), ' ');
+    winner_nickname = "";
+    clear_votes();
+
+    // Swap players
+    swap_players();
+    turn_index = RoomConfig::FIRST_PLAYER;
 }
 
 char Room::get_current_turn_symbol() {
@@ -163,6 +175,20 @@ void Room::remove_player_by_fd(int fd) {
     }
 }
 
+void Room::vote_rematch(int fd) {
+    if (std::find(rematch_votes.begin(), rematch_votes.end(), fd) == rematch_votes.end()) {
+        rematch_votes.push_back(fd);
+    }
+}
+
+bool Room::check_rematch_ready() {
+    return rematch_votes.size() == players.size() && players.size() == 2;
+}
+
+void Room::clear_votes() {
+    rematch_votes.clear();
+}
+
 // --- Private Helpers ---
 
 bool Room::check_win(char s) {
@@ -192,5 +218,11 @@ bool Room::check_draw() {
 }
 
 std::string Room::response(std::string tag, int code) {
-    return tag + "|" + std::to_string(code);
+    return tag + Protocol::SPLITTER + std::to_string(code);
+}
+
+void Room::swap_players() {
+    if (players.size() == RoomConfig::PLAYERS_AMOUNT) {
+        std::iter_swap(players.begin(), players.begin() + 1);
+    }
 }

@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout
 )
 from core.constants import (
-    LOGIN_SPACING
+    DEFAULT_SPACING
 )
 from core.styling import (
     TITLE_FONT, LABEL_FONT, 

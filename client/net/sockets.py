@@ -12,6 +12,7 @@ from PyQt6.QtCore import (
     Qt, QMetaObject
 )
 from core.protocol import *
+from typing import Literal
 
 class NetworkClient(QObject):
     """
@@ -31,9 +32,10 @@ class NetworkClient(QObject):
     # Game
     gameStarted = pyqtSignal(str, str, str) # symbol, opponent, board
     gamePaused = pyqtSignal()
-    gameResumed = pyqtSignal()
+    gameResumed = pyqtSignal(str)
     turnUpdate = pyqtSignal(str, str) # board, next_turn
     gameResult = pyqtSignal(str, str) # result_code, winner
+    gameEnded = pyqtSignal() # Lobby return
 
 
     # --- Functions ---
@@ -92,20 +94,46 @@ class NetworkClient(QObject):
             self.heartbeat_timer.start()
 
             # Thread for reading data
-            self.thread = threading.Thread(target=self._receiveLoop, daemon=True)
+            self.thread = threading.Thread(target=self._receiveLoop, args=(self.socket,), daemon=True)
             self.thread.start()
             self.connected.emit()
         
         except Exception as e:
             self.error.emit(str(e))
 
-    def _receiveLoop(self):
+    # ==================================================
+    # --- Connection Handling and Data Receiving Func ---
+
+    def _checkConnection(self):
+        """
+        Heartbeat function
+        """
+        if not self.running:
+            self.heartbeat_timer.stop()
+            return
+
+        # Server doesn't response
+        if time.time() - self.last_response_time > 6.0:
+            print("Heartbeat timeout! Server neodpovídá.")
+            self.error.emit("Connection timed out (Lost connection).")
+            
+            self.disconnect() 
+            return
+
+        self.sendPing()
+
+    def _receiveLoop(self, sock):
         """
         Main loop for receiving messages
         """
         buffer = ""
         try:
             while self.running:
+
+                # Ensure socket change (reconnect)
+                if sock != self.socket:
+                    break
+
                 try:
                     raw_data = self.socket.recv(MAX_BUFFER_SIZE)
                     if not raw_data:
@@ -169,7 +197,11 @@ class NetworkClient(QObject):
                 self.gamePaused.emit()
             
             elif sub_cmd == "RESUMED":
-                self.gameResumed.emit()
+                turn_sym = parts[2] if len(parts) > 2 else ""
+                self.gameResumed.emit(turn_sym)
+
+            elif sub_cmd == "ENDED":
+                self.gameEnded.emit()
 
         elif cmd == "TURN":
             # Format: TURN|VALID_MOVE|<board>|<next_turn>
@@ -216,6 +248,23 @@ class NetworkClient(QObject):
         elif (cmd == "PONG"):
             return
 
+    def disconnect(self):
+        """
+        Set its self to disconnected form
+        """
+        self.running = False
+        QMetaObject.invokeMethod(self.heartbeat_timer, "stop", Qt.ConnectionType.QueuedConnection)
+        if (self.socket):
+            try:
+                self.socket.close()
+            except:
+                pass
+            self.socket = None
+        self.disconnected.emit()
+
+    # ==================================
+    # ----- Function fro MSG send -----
+
     def sendSync(self):
         """
         Sends sync msg to server to find out the current state of user
@@ -242,21 +291,7 @@ class NetworkClient(QObject):
             except:
                 self.error.emit("Failed to send MOVE")
 
-    def disconnect(self):
-        """
-        Set its self to disconnected form
-        """
-        self.running = False
-        QMetaObject.invokeMethod(self.heartbeat_timer, "stop", Qt.ConnectionType.QueuedConnection)
-        if (self.socket):
-            try:
-                self.socket.close()
-            except:
-                pass
-            self.socket = None
-        self.disconnected.emit()
-
-    def sentFindRequest(self):
+    def sendFindRequest(self):
         """
         Sent find request to server
         """
@@ -265,24 +300,6 @@ class NetworkClient(QObject):
                 self.socket.sendall(f"{self.header}FIND\n".encode('utf-8'))
             except:
                 pass
-
-    def _checkConnection(self):
-        """
-        Heartbeat function
-        """
-        if not self.running:
-            self.heartbeat_timer.stop()
-            return
-
-        # Server doesn't response
-        if time.time() - self.last_response_time > 6.0:
-            print("Heartbeat timeout! Server neodpovídá.")
-            self.error.emit("Connection timed out (Lost connection).")
-            
-            self.disconnect() 
-            return
-
-        self.sendPing()
 
     def sendPing(self):
         """
@@ -300,5 +317,35 @@ class NetworkClient(QObject):
             try:
                 login_msg = f"{self.header}LOGIN{SPLITTER}{nickname}\n"
                 self.socket.sendall(login_msg.encode('utf-8'))
+            except:
+                pass
+
+    def sendDisconnect(self):
+        """
+        Disconnects client from server and leads to login scene
+        """
+        # Format: DISCONNECT\n
+        ...
+
+    def sendRematch(self):
+        """
+        Sends status for rematch of game
+        """
+        # Format REMATCH|<status>\n
+        if self.running and self.socket:
+            try:
+                msg = f"{self.header}REMATCH\n"
+                self.socket.sendall(msg.encode('utf-8'))
+            except:
+                self.error.emit("Failed to send REMATCH")
+
+    def sendLeave(self):
+        """
+        Sends request to get back to lobby
+        """
+        if self.running and self.socket:
+            try:
+                msg = f"{self.header}LEAVE\n"
+                self.socket.sendall(msg.encode('utf-8'))
             except:
                 pass

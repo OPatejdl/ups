@@ -10,6 +10,10 @@ namespace Protocol {
     inline constexpr int DISCONNECTED_USER_SOCKET = -1;
     inline constexpr int MIN_PARTS = 1;
     inline constexpr int COMMAND_POS = 0;
+    inline const std::string SPLITTER = "|";
+    inline const char SPLITTER_CH = '|';
+    inline const std::string PROTOCOL_END = "\n";
+    inline const char PROTOCOL_END_CHAR = '\n';
 
     // --- LOGIN Responses ---
     inline constexpr int NICK_PARAM_POS = 1;

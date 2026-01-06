@@ -87,7 +87,7 @@ namespace MyServer {
     void Server::create_server_socket() {
         server_socket = socket(AF_INET, SOCK_STREAM, 0);
         if (server_socket < 0) {
-            LOG_ERROR("Unable to create server socket\n");
+            LOG_ERROR("Unable to create server socket");
             throw MyExceptions::ServerException(Utility::ERROR_UNCREATED_SERVER_SOC);
         } else {
             LOG_INFO("Server socket was created");
@@ -156,7 +156,7 @@ namespace MyServer {
 
         // Handle msg
         size_t pos;
-        while ((pos = active_buffer->find('\n')) != std::string::npos) {
+        while ((pos = active_buffer->find(Protocol::PROTOCOL_END_CHAR)) != std::string::npos) {
             std::string msg_to_process = active_buffer->substr(0, pos);
             active_buffer->erase(0, pos + 1);
 
@@ -203,7 +203,10 @@ namespace MyServer {
     
             // Inform opponent if exist
             if (opponent && room->state != ROOM_STATE::FINISHED) {
-                std::string msg = Protocol::PROTOCOL_HEADER + "GAME|PAUSED|Opponent disconnected\n";
+                std::string msg = Protocol::PROTOCOL_HEADER + "GAME" +
+                                Protocol::SPLITTER + "PAUSED" + 
+                                Protocol::PROTOCOL_END;
+                
                 send_all(opponent->fd_socket, msg);
             }
 
@@ -225,7 +228,7 @@ namespace MyServer {
 
     void Server::remove_client(int client_fd) {
         // Inform client
-        std::string err_msg = "Error: Invalid protocol\n";
+        std::string err_msg = "Error: Invalid protocol" + Protocol::PROTOCOL_END;
         send_all(client_fd, err_msg);
 
         // Remove client
@@ -293,6 +296,10 @@ namespace MyServer {
                 handle_sync(client_fd, user);
             } else if (command == "PING") {
                 handle_ping(client_fd, user);
+            } else if (command == "REMATCH") {
+            handle_rematch(client_fd, user);
+            } else if (command == "LEAVE") {
+                handle_leave(client_fd, user);
             }
         } 
 
@@ -337,7 +344,10 @@ namespace MyServer {
         }
 
         // Send response
-        std::string rsp_msg = Protocol::PROTOCOL_HEADER + "LOGIN|" + std::to_string(rsp_code) + "\n";
+        std::string rsp_msg = Protocol::PROTOCOL_HEADER + "LOGIN" +
+                            Protocol::SPLITTER + std::to_string(rsp_code) +
+                            Protocol::PROTOCOL_END;
+        
         send_all(client_fd, rsp_msg);
 
         return true;
@@ -350,7 +360,7 @@ namespace MyServer {
         auto room = RoomManager::join_waiting_room(user);
 
         if (!room) {
-            std::string err = Protocol::PROTOCOL_HEADER + "ROOM_ERROR\n";
+            std::string err = Protocol::PROTOCOL_HEADER + "ROOM_ERROR" + Protocol::PROTOCOL_END;
             send_all(client_fd, err);
             return true;
         }
@@ -360,16 +370,23 @@ namespace MyServer {
             auto players = room->get_players();
             
             // MSG to both players - GAME|<start_symbol>|<opponent nick>|<board>
-            std::string msg1 = Protocol::PROTOCOL_HEADER + "GAME|START_X|" + players[1]->nickname + "|" + room->get_board_string() + "\n";
+            std::string msg1 = Protocol::PROTOCOL_HEADER + "GAME" + 
+                            Protocol::SPLITTER + "START_X" +
+                            Protocol::SPLITTER + players[1]->nickname +
+                            Protocol::SPLITTER + room->get_board_string() +
+                            Protocol::PROTOCOL_END;
+            
             send_all(players[0]->fd_socket, msg1);
 
-            std::string msg2 = Protocol::PROTOCOL_HEADER + "GAME|START_O|" + players[0]->nickname + "|" + room->get_board_string() + "\n";
+            std::string msg2 = Protocol::PROTOCOL_HEADER + "GAME" + Protocol::SPLITTER + "START_O" + 
+                                Protocol::SPLITTER + players[0]->nickname + 
+                                Protocol::SPLITTER + room->get_board_string() + Protocol::PROTOCOL_END;
             send_all(players[1]->fd_socket, msg2);
             
             LOG_INFO("Match started in Room " + std::to_string(room->id));
         } else {
             // Waiting for another player
-            std::string wait_msg = Protocol::PROTOCOL_HEADER + "WAITING\n";
+            std::string wait_msg = Protocol::PROTOCOL_HEADER + "WAITING" + Protocol::PROTOCOL_END;
             send_all(client_fd, wait_msg);
         }
 
@@ -394,16 +411,15 @@ namespace MyServer {
 
             // Error check for move
             if (game_response.find("TURN") != std::string::npos) {
-                is_error = (game_response.find("|" + std::to_string(Protocol::OCCUPIED_FIELD)) != std::string::npos) ||
-                                (game_response.find("|" + std::to_string(Protocol::NOT_YOUR_TURN)) != std::string::npos) ||
-                                (game_response.find("|" + std::to_string(Protocol::INVALID_MOVE)) != std::string::npos) ||
-                                (game_response.find("|" + std::to_string(Protocol::PLAYER_NOT_BELONG)) != std::string::npos) ||
+                is_error = (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::OCCUPIED_FIELD)) != std::string::npos) ||
+                                (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::NOT_YOUR_TURN)) != std::string::npos) ||
+                                (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::INVALID_MOVE)) != std::string::npos) ||
+                                (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::PLAYER_NOT_BELONG)) != std::string::npos) ||
                                 (game_response.rfind("ERROR", 0) == 0);
             }
 
             if (is_error) {
-                std::string full_msg = Protocol::PROTOCOL_HEADER + game_response + "\n";
-                // ZMĚNA: send -> send_all
+                std::string full_msg = Protocol::PROTOCOL_HEADER + game_response + Protocol::PROTOCOL_END;
                 send_all(client_fd, full_msg);
             } 
             else {
@@ -412,15 +428,17 @@ namespace MyServer {
 
                 if (game_response.find("RESULT") == std::string::npos) {
                     std::string next_turn_sym = std::string(1, room->get_current_turn_symbol());
-                    full_msg = Protocol::PROTOCOL_HEADER + game_response + "|" + next_turn_sym + "\n";
+                    full_msg = Protocol::PROTOCOL_HEADER + game_response +
+                            Protocol::SPLITTER + next_turn_sym +
+                            Protocol::PROTOCOL_END;
+            
                 } else {
                     // Game finished
-                    full_msg = Protocol::PROTOCOL_HEADER + game_response + "\n";
+                    full_msg = Protocol::PROTOCOL_HEADER + game_response + Protocol::PROTOCOL_END;
                 }
 
                 auto players = room->get_players();
                 for (auto& p : players) {
-                    // ZMĚNA: send -> send_all
                     send_all(p->fd_socket, full_msg);
                 }
             }
@@ -438,7 +456,7 @@ namespace MyServer {
 
         switch (user->state) {
             case USER_STATE::WAITING:
-                sync_msg = "SYNC|WAITING";
+                sync_msg = "SYNC" + Protocol::SPLITTER + "WAITING";
                 break;
 
             case USER_STATE::IN_GAME: {
@@ -450,24 +468,27 @@ namespace MyServer {
                     auto opponent = room->get_opponent(client_fd);
                     std::string opponent_nick = (opponent) ? opponent->nickname : "Unknown";
 
-                    sync_msg = "SYNC|GAME|" 
-                            + std::string(1, my_symbol) + "|" 
-                            + room->get_board_string() + "|"
-                            + std::string(1, room->get_current_turn_symbol()) + "|"
-                            + opponent_nick;
+                    sync_msg = "SYNC" + 
+                            Protocol::SPLITTER + "GAME" +
+                            Protocol::SPLITTER + std::string(1, my_symbol) + 
+                            Protocol::SPLITTER + room->get_board_string() +
+                            Protocol::SPLITTER + std::string(1, room->get_current_turn_symbol()) +
+                            Protocol::SPLITTER + opponent_nick;
                     
                     // Inform opponent
                     for(auto& p : room->get_players()) {
                         if(p->fd_socket != client_fd) {
-                            std::string res_msg = Protocol::PROTOCOL_HEADER + "GAME|RESUMED\n";
-                            // ZMĚNA: send -> send_all
+                            std::string res_msg = Protocol::PROTOCOL_HEADER + "GAME" +
+                                                Protocol::SPLITTER + "RESUMED" + 
+                                                Protocol::SPLITTER + std::string(1, room->get_current_turn_symbol()) + 
+                                                Protocol::PROTOCOL_END;
                             send_all(p->fd_socket, res_msg);
                         }
                     }
                 } else {
                     // User IN_GAME but game ended
                     user->state = USER_STATE::CONNECTED;
-                    sync_msg = "SYNC|LOBBY";
+                    sync_msg = "SYNC" + Protocol::SPLITTER + "LOBBY";
                 }
                 break;
             }
@@ -480,22 +501,25 @@ namespace MyServer {
                     std::string opponent_nick = (opponent) ? opponent->nickname : "Unknown";
 
                     // SYNC|RESULT|<opponent_nick>|<board>|<winner_nick>
-                    sync_msg = "SYNC|RESULT|" + opponent_nick + "|" + room->get_board_string() + "|" + room->winner_nickname;
+                    sync_msg = "SYNC"+ Protocol::SPLITTER + "RESULT" + 
+                            Protocol::SPLITTER + opponent_nick + 
+                            Protocol::SPLITTER + room->get_board_string() +
+                            Protocol::SPLITTER + room->winner_nickname;
                 } else {
                     user->state = USER_STATE::CONNECTED;
-                    sync_msg = "SYNC|LOBBY";
+                    sync_msg = "SYNC" + Protocol::SPLITTER + "LOBBY";
                 }
                 break;
             }
 
             case USER_STATE::CONNECTED:
             default:
-                sync_msg = "SYNC|LOBBY";
+                sync_msg = "SYNC" + Protocol::SPLITTER + "LOBBY";
                 break;
         }
 
         // Send msg
-        std::string full_msg = Protocol::PROTOCOL_HEADER + sync_msg + "\n";
+        std::string full_msg = Protocol::PROTOCOL_HEADER + sync_msg + Protocol::PROTOCOL_END;
         send_all(client_fd, full_msg);
         return true;
     }
@@ -519,9 +543,93 @@ namespace MyServer {
                 break;
         }
         
-        std::string pong = Protocol::PROTOCOL_HEADER + "PONG|" + state_str + "\n";
+        std::string pong = Protocol::PROTOCOL_HEADER + "PONG" +
+                        Protocol::SPLITTER + state_str + 
+                        Protocol::PROTOCOL_END;
         send_all(client_fd, pong);
 
+        return true;
+    }
+
+    bool Server::handle_rematch(int client_fd, std::shared_ptr<User> user) {
+        if (user->state != USER_STATE::RESULT) return false;
+
+        auto room = RoomManager::get_room_by_user_fd(client_fd);
+        if (!room) return false;
+
+        // Vote for rematch
+        room->vote_rematch(client_fd);
+
+        // Rematch check
+        if (room->check_rematch_ready()) {
+            // Rematch starts
+            LOG_INFO("Rematch accepted in Room " + std::to_string(room->id));
+
+            room->reset_game();
+            room->state = ROOM_STATE::PLAYING;
+
+            // Sets players state IN_GAME
+            auto players = room->get_players();
+            for (auto& p : players) p->state = USER_STATE::IN_GAME;
+            
+            char current_symbol = room->get_current_turn_symbol();
+            int turn_index = room->get_turn_index();
+            
+            for (auto& p : players) {
+                char p_sym = (p->fd_socket == players[turn_index]->fd_socket) ? current_symbol : ((current_symbol == 'X') ? 'O' : 'X');
+                auto opp = room->get_opponent(p->fd_socket);
+                
+                // MSG: GAME|START_X|<opp_nick>|<board>
+                std::string msg = Protocol::PROTOCOL_HEADER + "GAME" +
+                                Protocol::SPLITTER + "START_" + std::string(1, p_sym) +
+                                Protocol::SPLITTER + opp->nickname +
+                                Protocol::SPLITTER + room->get_board_string() +
+                                Protocol::PROTOCOL_END;
+                send_all(p->fd_socket, msg);
+            }
+        } else {
+            // Inform about waiting for opponent response
+            send_all(client_fd, Protocol::PROTOCOL_HEADER + "GAME" + Protocol::SPLITTER + "REMATCH_WAIT" + Protocol::PROTOCOL_END);
+        }
+        return true;
+    }
+
+    bool Server::handle_leave(int client_fd, std::shared_ptr<User> user) {
+        auto room = RoomManager::get_room_by_user_fd(client_fd);
+        
+        // User left a game
+        if (room) {
+            LOG_INFO("User " + user->nickname + " left the room explicitly.");
+
+            // Find opponent and inform him about game finish
+            auto opponent = room->get_opponent(client_fd);
+            if (opponent) {
+                opponent->state = USER_STATE::CONNECTED;
+                
+                std::string end_msg = Protocol::PROTOCOL_HEADER + "GAME" +
+                                    Protocol::SPLITTER + "ENDED" +
+                                    Protocol::PROTOCOL_END;
+                
+                send_all(opponent->fd_socket, end_msg);
+                
+                room->remove_player_by_fd(opponent->fd_socket);
+            }
+
+            // Sync client
+            user->state = USER_STATE::CONNECTED;
+            std::string confirm_msg = Protocol::PROTOCOL_HEADER + "SYNC" +
+                                    Protocol::SPLITTER + "LOBBY" +
+                                    Protocol::PROTOCOL_END;
+            
+            send_all(client_fd, confirm_msg);
+            
+            room->remove_player_by_fd(client_fd);
+
+            // Remove room if possible
+            if (room->is_empty()) {
+                RoomManager::remove_room(room->id);
+            }
+        }
         return true;
     }
 }

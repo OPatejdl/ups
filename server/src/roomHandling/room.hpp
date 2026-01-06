@@ -107,12 +107,40 @@ public:
      */
     std::shared_ptr<User> get_opponent(int fd);
 
+    /**
+     * Removes player from game based on his fd
+     * @param fd File descriptor of the player
+     */
     void remove_player_by_fd(int fd);
+
+    /**
+     * Function for voting for rematch by user
+     * @param fd File descriptor of the player 
+     */
+    void vote_rematch(int fd);
+
+    /**
+     * Checks weather both players voted or some of them left the game (disagreed)
+     * @return true, if rematch is agreed, otherwise false
+     */
+    bool check_rematch_ready();
+
+    /**
+     * Clears voting list
+     */
+    void clear_votes();
+
+    /**
+     * Gets index of player on the turn
+     * @returns Index of player on the turn 
+     */
+    int get_turn_index() const { return turn_index; }
 
 private:
     std::vector<std::shared_ptr<User>> players; /** List of players in the room (max 2) */
     std::vector<char> board;                    /** Linear representation of 3x3 board */
     int turn_index;                             /** Index of the player currently on turn */
+    std::vector<int> rematch_votes;             /** List of fd, who agrees with rematch */
     
     /**
      * Checks if the given symbol has won the game.
@@ -134,6 +162,11 @@ private:
      * @return formatted response of server
      */
     std::string response(std::string tag, int code);
+
+    /**
+     * Swaps players of the game to change starting position
+     */
+    void swap_players();
 };
 
 #endif
