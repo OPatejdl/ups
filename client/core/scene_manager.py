@@ -124,11 +124,15 @@ class MainWindow(QMainWindow):
         """
         Handles exitRequest signal emitted by exit_btn in the Lobby scene
         """
-        self.scene_manager.setCurrentWidget(self.login_scene)
+        self.network.sendDisconnect()
         self.network.disconnect()
+        self.scene_manager.setCurrentWidget(self.login_scene)
 
     @pyqtSlot()
     def findGameRequestHandler(self):
+        """
+        Handles findGameRequest signal emitted by findGame_btn
+        """
         self.network.sendFindRequest()
 
     def onWaiting(self):

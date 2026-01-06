@@ -46,7 +46,7 @@ class NetworkClient(QObject):
         super().__init__()
         self.socket = None
         self.running = False
-        self.header = HEADER
+        self.header = PROTOCOL_HEADER
 
         # Client Identifier
         self.nickname = ""
@@ -72,7 +72,7 @@ class NetworkClient(QObject):
             self.nickname = nickname
             # Recycle - invalid login
             if self.running and self.socket:
-                if getattr(self, 'current_host', None) == host and getattr(self, 'current_port', None) == port:
+                if getattr(self, "current_host", None) == host and getattr(self, "current_port", None) == port:
                     print("Reusing existing connection...")
                     self.sendLogin(nickname)
                     return
@@ -143,7 +143,7 @@ class NetworkClient(QObject):
                     # Server is alive
                     self.last_response_time = time.time()
 
-                    data = raw_data.decode('utf-8', errors='replace')
+                    data = raw_data.decode("utf-8", errors="replace")
 
                     buffer += data
                     while "\n" in buffer:
@@ -272,7 +272,7 @@ class NetworkClient(QObject):
         if self.running and self.socket:
             try:
                 msg = f"{self.header}SYNC\n"
-                self.socket.sendall(msg.encode('utf-8'))
+                self.socket.sendall(msg.encode("utf-8"))
             except:
                 self.error.emit("Failed to send SYNC")
 
@@ -287,7 +287,7 @@ class NetworkClient(QObject):
         if self.running and self.socket:
             try:
                 msg = f"{self.header}MOVE|{x}|{y}\n"
-                self.socket.sendall(msg.encode('utf-8'))
+                self.socket.sendall(msg.encode("utf-8"))
             except:
                 self.error.emit("Failed to send MOVE")
 
@@ -297,7 +297,7 @@ class NetworkClient(QObject):
         """
         if self.running:
             try:
-                self.socket.sendall(f"{self.header}FIND\n".encode('utf-8'))
+                self.socket.sendall(f"{self.header}FIND\n".encode("utf-8"))
             except:
                 pass
 
@@ -308,7 +308,7 @@ class NetworkClient(QObject):
         if self.running and self.socket:
             try:
                 msg = f"{self.header}PING\n"
-                self.socket.sendall(msg.encode('utf-8'))
+                self.socket.sendall(msg.encode("utf-8"))
             except:
                 pass
 
@@ -316,16 +316,9 @@ class NetworkClient(QObject):
         if self.running and self.socket:
             try:
                 login_msg = f"{self.header}LOGIN{SPLITTER}{nickname}\n"
-                self.socket.sendall(login_msg.encode('utf-8'))
+                self.socket.sendall(login_msg.encode("utf-8"))
             except:
                 pass
-
-    def sendDisconnect(self):
-        """
-        Disconnects client from server and leads to login scene
-        """
-        # Format: DISCONNECT\n
-        ...
 
     def sendRematch(self):
         """
@@ -334,8 +327,8 @@ class NetworkClient(QObject):
         # Format REMATCH|<status>\n
         if self.running and self.socket:
             try:
-                msg = f"{self.header}REMATCH\n"
-                self.socket.sendall(msg.encode('utf-8'))
+                msg = f"{self.header}REMATCH{PROTOCOL_ENDING}"
+                self.socket.sendall(msg.encode("utf-8"))
             except:
                 self.error.emit("Failed to send REMATCH")
 
@@ -345,7 +338,18 @@ class NetworkClient(QObject):
         """
         if self.running and self.socket:
             try:
-                msg = f"{self.header}LEAVE\n"
-                self.socket.sendall(msg.encode('utf-8'))
+                msg = f"{self.header}LEAVE{PROTOCOL_ENDING}"
+                self.socket.sendall(msg.encode("utf-8"))
+            except:
+                pass
+
+    def sendDisconnect(self):
+        """
+        Disconnects client from server and leads to login scene
+        """
+        if self.running and self.socket:
+            try:
+                msg = f"{self.header}DISCONNECT{PROTOCOL_ENDING}"
+                self.socket.sendall(msg.encode("utf-8"))
             except:
                 pass

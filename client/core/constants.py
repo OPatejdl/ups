@@ -31,9 +31,6 @@ BOARD_TILE_SIZE = 80
 DEFAULT_SPACING = 20
 
 ########################
-# Protocol
-
-########################
 # Game constants (3X3 board)
 BOARD_SIZE = 3
 TOTAL_TILES = 9

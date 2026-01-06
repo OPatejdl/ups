@@ -46,7 +46,40 @@ namespace MyServer {
                 break;
             } 
             
-            UserManager::cleanup_users(std::chrono::seconds(Config::ALLOWED_TIME_SEC));
+            // Cleanup process
+            auto expired_users = UserManager::cleanup_users(std::chrono::seconds(Config::ALLOWED_TIME_SEC));
+
+            if (!expired_users.empty()) {
+                for (auto& user : expired_users) {
+                    // Check for room
+                    auto room = RoomManager::get_room_by_user_fd(user->fd_socket);
+
+                    if (room) {
+                        LOG_INFO("Cleaning up room: " + std::to_string(room->id) + " due to user timeout.");
+
+                        // Inform opponent
+                        auto opponent = room->get_opponent(user->fd_socket);
+
+                        if (opponent) {
+                            opponent->state = USER_STATE::CONNECTED;
+
+                            // Send msg to opponent
+                            std::string end_msg = Protocol::PROTOCOL_HEADER + "GAME" +
+                                                Protocol::SPLITTER + "ENDED" +
+                                                Protocol::PROTOCOL_END;
+                            send_all(opponent->fd_socket, end_msg);
+
+                            // To ensure sync send one more SYNC msg
+                            std::string sync_msg = Protocol::PROTOCOL_HEADER + "SYNC" + 
+                                                Protocol::SPLITTER + "LOBBY" +
+                                                Protocol::PROTOCOL_END;
+                            send_all(opponent->fd_socket, sync_msg);
+                        }
+                        RoomManager::remove_room(room->id);
+                    }
+                }
+            }
+
             cleanup_unauth_sockets();
 
             if (return_value == 0) {
@@ -290,16 +323,31 @@ namespace MyServer {
 
             if (command == "FIND") {
                 handle_find(client_fd, user);
-            } else if (command == "MOVE") {
+            }
+            else if (command == "MOVE") {
+                LOG_INFO("User" + user->nickname + " sent MOVE msg.");
                 handle_move(client_fd, user, parts);
-            } else if (command == "SYNC") {
+            }
+            else if (command == "SYNC") {
+                LOG_INFO("User" + user->nickname + " sent SYNC msg.");
                 handle_sync(client_fd, user);
-            } else if (command == "PING") {
+            }
+            else if (command == "PING") {
+                LOG_INFO("User" + user->nickname + " sent PING msg.");
                 handle_ping(client_fd, user);
-            } else if (command == "REMATCH") {
-            handle_rematch(client_fd, user);
-            } else if (command == "LEAVE") {
+            }
+            else if (command == "REMATCH") {
+                LOG_INFO("User" + user->nickname + " sent REMATCH msg.");
+                handle_rematch(client_fd, user);
+            } 
+            else if (command == "LEAVE") {
+                LOG_INFO("User" + user->nickname + " sent LEAVE msg.");
                 handle_leave(client_fd, user);
+            }
+            else if (command == "DISCONNECT") {
+                LOG_INFO("User" + user->nickname + " sent DISCONNECT msg.");
+                handle_disconnection(client_fd);
+                return true;
             }
         } 
 
