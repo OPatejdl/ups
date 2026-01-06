@@ -60,6 +60,7 @@ namespace MyServer {
             void handle_disconnection(int fd_disconnected);
             void remove_client(int fd);
             bool process_msg(int client_fd, std::string msg);
+            bool send_all(int socket_fd, const std::string& data);
 
             // Function for certain types of msg handling
             bool handle_login(int client_fd, const std::vector<std::string>& parts);

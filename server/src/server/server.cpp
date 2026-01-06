@@ -25,30 +25,35 @@ namespace MyServer {
     * Main loop of server 
     */
     void Server::run_server() {
-        struct timeval tv;
-        tv.tv_sec = Config::SEC_TIME;
-        tv.tv_usec = Config::MSEC_TIME;
+        // Init actual max file descriptor
+        int max_fd = server_socket;
 
         while(Utility::server_running) {
+            struct timeval tv;
+            tv.tv_sec = Config::SEC_TIME;
+            tv.tv_usec = Config::MSEC_TIME;
+
             ready_sockets = current_sockets;
 
-            return_value = select(FD_SETSIZE, &ready_sockets, NULL, NULL, &tv);
+            return_value = select(max_fd + 1, &ready_sockets, NULL, NULL, &tv);
+            
             if (return_value < 0) {
-                
                 // Check if error was not caused by Ctrl+C
                 if (errno == EINTR) {
                     continue;
                 }
-
                 LOG_ERROR("Select failed");
                 break;
-            } else {
-                // Check cleanups
-                UserManager::cleanup_users(std::chrono::seconds(Config::ALLOWED_TIME_SEC));
-                cleanup_unauth_sockets();
+            } 
+            
+            UserManager::cleanup_users(std::chrono::seconds(Config::ALLOWED_TIME_SEC));
+            cleanup_unauth_sockets();
+
+            if (return_value == 0) {
+                continue; 
             }
 
-            for (fd = 0; fd < FD_SETSIZE; fd++) {
+            for (fd = 0; fd <= max_fd; fd++) {
                 if (!FD_ISSET(fd, &ready_sockets)) continue;
 
                 if (fd == server_socket) {
@@ -59,6 +64,11 @@ namespace MyServer {
                         LOG_WARNING("Error when loading new client!");
                         continue;
                     }
+                    
+                    if (client_socket > max_fd) {
+                        max_fd = client_socket;
+                    }
+
                     new_client_connection();
                 }
                 else {
@@ -70,6 +80,10 @@ namespace MyServer {
 
     /////////////////////////////////////////////
     // Private Functions
+
+    // ====================================================
+    // --------- Function Needed for Server Init --------
+
     void Server::create_server_socket() {
         server_socket = socket(AF_INET, SOCK_STREAM, 0);
         if (server_socket < 0) {
@@ -105,6 +119,9 @@ namespace MyServer {
         }
     }
 
+    // ====================================================
+    // ----------- Function needed for server run --------
+
     void Server::new_client_connection() {
         FD_SET(client_socket, &current_sockets);
 
@@ -113,7 +130,8 @@ namespace MyServer {
         LOG_INFO("New client socket connected on fd: " + std::to_string(client_socket));
 
         msg = Protocol::PROTOCOL_HEADER + "AUTH|1\n";
-        send(client_socket, msg.c_str(), msg.size(), 0);
+        // ZMĚNA: send -> send_all
+        send_all(client_socket, msg);
     }
 
     void Server::handle_client_data() {
@@ -152,7 +170,7 @@ namespace MyServer {
             } else if (unauth_sockets.count(fd)) {
                 active_buffer = &(unauth_sockets[fd].buffer);
             } else {
-                // Socket mohl být mezitím úplně uzavřen
+                // Closed socket
                 break;
             }
         }
@@ -186,7 +204,7 @@ namespace MyServer {
             // Inform opponent if exist
             if (opponent && room->state != ROOM_STATE::FINISHED) {
                 std::string msg = Protocol::PROTOCOL_HEADER + "GAME|PAUSED|Opponent disconnected\n";
-                send(opponent->fd_socket, msg.c_str(), msg.size(), 0);
+                send_all(opponent->fd_socket, msg);
             }
 
             // Delete room if empty
@@ -208,7 +226,7 @@ namespace MyServer {
     void Server::remove_client(int client_fd) {
         // Inform client
         std::string err_msg = "Error: Invalid protocol\n";
-        send(client_fd, err_msg.c_str(), err_msg.size(), 0);
+        send_all(client_fd, err_msg);
 
         // Remove client
         close(client_fd);
@@ -281,7 +299,28 @@ namespace MyServer {
         return false;
     }
 
-    // Function for certain types of msg handling
+    bool Server::send_all(int socket_fd, const std::string& data) {
+        const char* ptr = data.c_str();
+        size_t remaining = data.size();
+        ssize_t sent = 0;
+
+        while (remaining > 0) {
+            sent = send(socket_fd, ptr, remaining, 0);
+            
+            if (sent == -1) {
+                LOG_ERROR("Sending failed to fd: " + std::to_string(socket_fd));
+                return false; // Connection error
+            }
+            
+            ptr += sent;
+            remaining -= sent;
+        }
+        return true; // All went fine
+    }
+
+    // ====================================================
+    // ------------- Msg Handling Functions --------
+
     bool Server::handle_login(int client_fd, const std::vector<std::string>& parts) {
         // Validation of parameters
         if (parts.size() <= Protocol::NICK_PARAM_POS) {
@@ -299,7 +338,7 @@ namespace MyServer {
 
         // Send response
         std::string rsp_msg = Protocol::PROTOCOL_HEADER + "LOGIN|" + std::to_string(rsp_code) + "\n";
-        send(client_fd, rsp_msg.c_str(), rsp_msg.size(), 0);
+        send_all(client_fd, rsp_msg);
 
         return true;
     }
@@ -312,7 +351,7 @@ namespace MyServer {
 
         if (!room) {
             std::string err = Protocol::PROTOCOL_HEADER + "ROOM_ERROR\n";
-            send(client_fd, err.c_str(), err.size(), 0);
+            send_all(client_fd, err);
             return true;
         }
 
@@ -322,16 +361,16 @@ namespace MyServer {
             
             // MSG to both players - GAME|<start_symbol>|<opponent nick>|<board>
             std::string msg1 = Protocol::PROTOCOL_HEADER + "GAME|START_X|" + players[1]->nickname + "|" + room->get_board_string() + "\n";
-            send(players[0]->fd_socket, msg1.c_str(), msg1.size(), 0);
+            send_all(players[0]->fd_socket, msg1);
 
             std::string msg2 = Protocol::PROTOCOL_HEADER + "GAME|START_O|" + players[0]->nickname + "|" + room->get_board_string() + "\n";
-            send(players[1]->fd_socket, msg2.c_str(), msg2.size(), 0);
+            send_all(players[1]->fd_socket, msg2);
             
             LOG_INFO("Match started in Room " + std::to_string(room->id));
         } else {
             // Waiting for another player
             std::string wait_msg = Protocol::PROTOCOL_HEADER + "WAITING\n";
-            send(client_fd, wait_msg.c_str(), wait_msg.size(), 0);
+            send_all(client_fd, wait_msg);
         }
 
         return true;
@@ -364,7 +403,8 @@ namespace MyServer {
 
             if (is_error) {
                 std::string full_msg = Protocol::PROTOCOL_HEADER + game_response + "\n";
-                send(client_fd, full_msg.c_str(), full_msg.size(), 0);
+                // ZMĚNA: send -> send_all
+                send_all(client_fd, full_msg);
             } 
             else {
                 // Valid move or game finished - inform both players
@@ -380,7 +420,8 @@ namespace MyServer {
 
                 auto players = room->get_players();
                 for (auto& p : players) {
-                    send(p->fd_socket, full_msg.c_str(), full_msg.size(), 0);
+                    // ZMĚNA: send -> send_all
+                    send_all(p->fd_socket, full_msg);
                 }
             }
 
@@ -419,7 +460,8 @@ namespace MyServer {
                     for(auto& p : room->get_players()) {
                         if(p->fd_socket != client_fd) {
                             std::string res_msg = Protocol::PROTOCOL_HEADER + "GAME|RESUMED\n";
-                            send(p->fd_socket, res_msg.c_str(), res_msg.size(), 0);
+                            // ZMĚNA: send -> send_all
+                            send_all(p->fd_socket, res_msg);
                         }
                     }
                 } else {
@@ -454,7 +496,7 @@ namespace MyServer {
 
         // Send msg
         std::string full_msg = Protocol::PROTOCOL_HEADER + sync_msg + "\n";
-        send(client_fd, full_msg.c_str(), full_msg.size(), 0);
+        send_all(client_fd, full_msg);
         return true;
     }
 
@@ -478,7 +520,7 @@ namespace MyServer {
         }
         
         std::string pong = Protocol::PROTOCOL_HEADER + "PONG|" + state_str + "\n";
-        send(client_fd, pong.c_str(), pong.size(), 0);
+        send_all(client_fd, pong);
 
         return true;
     }
