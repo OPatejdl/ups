@@ -89,11 +89,20 @@ std::string Room::process_move(int fd, int x, int y) {
     // Check for Win/Draw conditions
     if (check_win(symbol)) {
         state = ROOM_STATE::FINISHED;
-        std::string winner_nick = players[player_idx]->nickname;
-        LOG_INFO("Room: " + std::to_string(id) + "-> game finished - WINNER is " + winner_nick +"!");
-        return response("RESULT", Protocol::WIN) + "|" + get_board_string() + "|" + winner_nick; 
+
+        // Set winner and users result's state
+        this->winner_nickname = players[player_idx]->nickname;
+        for (auto& p : players) p->state = USER_STATE::RESULT;
+
+        LOG_INFO("Room: " + std::to_string(id) + "-> game finished - WINNER is " + this->winner_nickname +"!");
+        return response("RESULT", Protocol::WIN) + "|" + get_board_string() + "|" + this->winner_nickname; 
     } else if (check_draw()) {
         state = ROOM_STATE::FINISHED;
+
+        // Set winner empty and make user's state to RESULT
+        this->winner_nickname = "";
+        for (auto& p : players) p->state = USER_STATE::RESULT;
+
         LOG_INFO("Room: " + std::to_string(id) + "-> game finished - DRAW!");
         return response("RESULT", Protocol::DRAW) + "|" + get_board_string();
     }

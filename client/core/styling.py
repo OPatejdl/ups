@@ -38,6 +38,30 @@ GLOBAL_STYLESHEET = """
     }
 """
 
+BLUE_BTN_STYLE = """
+            QPushButton {
+                background-color: #007BFF;
+            }
+            QPushButton:hover {
+                background-color: #33A1FF;
+            }
+            QPushButton:pressed {
+                background-color: #0056B3;
+            }
+        """
+
+RED_BTN_STYLE = """
+            QPushButton {
+                background-color: #FF3B3B;
+            }
+            QPushButton:hover {
+                background-color: #FF6666;
+            }
+            QPushButton:pressed {
+                background-color: #CC0000;
+            }
+        """
+
 def setAppStyling(app: QApplication):
     """Apply the global stylesheet and fonts to the QApplication."""
     app.setStyleSheet(GLOBAL_STYLESHEET)

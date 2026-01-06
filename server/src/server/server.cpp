@@ -145,12 +145,37 @@ namespace MyServer {
             if (!process_msg(fd, msg_to_process)) {
                 break;
             }
+
+            user = UserManager::get_user_by_fd(fd);
+            if (user) {
+                active_buffer = &(user->partial_msg);
+            } else if (unauth_sockets.count(fd)) {
+                active_buffer = &(unauth_sockets[fd].buffer);
+            } else {
+                // Socket mohl být mezitím úplně uzavřen
+                break;
+            }
         }
     }
 
     void Server::handle_disconnection(int fd_disconnected) {
 
         LOG_INFO("Handling disconnection for fd: " + std::to_string(fd_disconnected));
+        
+        // Ensure users integrity
+        auto user = UserManager::get_user_by_fd(fd_disconnected);
+
+        if (user) {
+            if (user->fd_socket != fd_disconnected) {
+                LOG_WARNING("Ignoring disconnect logic for old fd: " + std::to_string(fd_disconnected) + 
+                            ". User " + user->nickname + " is already active on fd: " + std::to_string(user->fd_socket));
+                
+                unauth_sockets.erase(fd_disconnected);
+                close(fd_disconnected);
+                FD_CLR(fd_disconnected, &current_sockets);
+                return;
+            }
+        }
 
         // Check rooms
         auto room = RoomManager::get_room_by_user_fd(fd_disconnected);
@@ -171,9 +196,11 @@ namespace MyServer {
             }
         }
 
+        // Disconnect user
         UserManager::disconnect_user(fd_disconnected);
-        unauth_sockets.erase(fd_disconnected);
 
+        // Cleaning
+        unauth_sockets.erase(fd_disconnected);
         close(fd_disconnected);
         FD_CLR(fd_disconnected, &current_sockets);
     }
@@ -244,6 +271,8 @@ namespace MyServer {
                 handle_find(client_fd, user);
             } else if (command == "MOVE") {
                 handle_move(client_fd, user, parts);
+            } else if (command == "SYNC") {
+                handle_sync(client_fd, user);
             } else if (command == "PING") {
                 handle_ping(client_fd, user);
             }
@@ -322,16 +351,18 @@ namespace MyServer {
 
             // Process move - returns game_rsp
             std::string game_response = room->process_move(client_fd, x, y);
-            
-            // Error check
-            bool is_error = (game_response.find("|" + std::to_string(Protocol::OCCUPIED_FIELD)) != std::string::npos) ||
-                            (game_response.find("|" + std::to_string(Protocol::NOT_YOUR_TURN)) != std::string::npos) ||
-                            (game_response.find("|" + std::to_string(Protocol::INVALID_MOVE)) != std::string::npos) ||
-                            (game_response.find("|" + std::to_string(Protocol::PLAYER_NOT_BELONG)) != std::string::npos) ||
-                            (game_response.rfind("ERROR", 0) == 0);
+            bool is_error = false;
+
+            // Error check for move
+            if (game_response.find("TURN") != std::string::npos) {
+                is_error = (game_response.find("|" + std::to_string(Protocol::OCCUPIED_FIELD)) != std::string::npos) ||
+                                (game_response.find("|" + std::to_string(Protocol::NOT_YOUR_TURN)) != std::string::npos) ||
+                                (game_response.find("|" + std::to_string(Protocol::INVALID_MOVE)) != std::string::npos) ||
+                                (game_response.find("|" + std::to_string(Protocol::PLAYER_NOT_BELONG)) != std::string::npos) ||
+                                (game_response.rfind("ERROR", 0) == 0);
+            }
 
             if (is_error) {
-                // Msg only for sender
                 std::string full_msg = Protocol::PROTOCOL_HEADER + game_response + "\n";
                 send(client_fd, full_msg.c_str(), full_msg.size(), 0);
             } 
@@ -361,12 +392,12 @@ namespace MyServer {
 
     }
 
-    bool Server::handle_ping(int client_fd, std::shared_ptr<User> user) {
-        std::string pong_msg;
+    bool Server::handle_sync(int client_fd, std::shared_ptr<User> user) {
+        std::string sync_msg;
 
         switch (user->state) {
             case USER_STATE::WAITING:
-                pong_msg = "PONG|WAITING";
+                sync_msg = "SYNC|WAITING";
                 break;
 
             case USER_STATE::IN_GAME: {
@@ -380,7 +411,7 @@ namespace MyServer {
                         if (p->fd_socket != client_fd) opponent_nick = p->nickname;
                     }
 
-                    pong_msg = "PONG|GAME|" 
+                    sync_msg = "SYNC|GAME|" 
                             + std::string(1, my_symbol) + "|" 
                             + room->get_board_string() + "|"
                             + std::string(1, room->get_current_turn_symbol()) + "|"
@@ -396,20 +427,58 @@ namespace MyServer {
                 } else {
                     // User IN_GAME but game ended
                     user->state = USER_STATE::CONNECTED;
-                    pong_msg = "PONG|LOBBY";
+                    sync_msg = "SYNC|LOBBY";
+                }
+                break;
+            }
+            
+            case USER_STATE::RESULT: {
+                auto room = RoomManager::get_room_by_user_fd(client_fd);
+                if (room) {
+                    // SYNC|RESULT|<board>|<winner>
+                    sync_msg = "SYNC|RESULT|" + room->get_board_string() + "|" + room->winner_nickname;
+                } else {
+                    // Room doesn't exist - timeout or opponent left game either
+                    user->state = USER_STATE::CONNECTED;
+                    sync_msg = "SYNC|LOBBY";
                 }
                 break;
             }
 
             case USER_STATE::CONNECTED:
             default:
-                pong_msg = "PONG|LOBBY";
+                sync_msg = "SYNC|LOBBY";
                 break;
         }
 
         // Send msg
-        std::string full_msg = Protocol::PROTOCOL_HEADER + pong_msg + "\n";
+        std::string full_msg = Protocol::PROTOCOL_HEADER + sync_msg + "\n";
         send(client_fd, full_msg.c_str(), full_msg.size(), 0);
         return true;
+    }
+
+    bool Server::handle_ping(int client_fd, std::shared_ptr<User> user) {
+        std::string state_str = "LOBBY";
+    
+        switch (user->state) {
+            case USER_STATE::WAITING:
+                state_str = "WAITING";
+                break;
+            case USER_STATE::IN_GAME:
+                state_str = "GAME"; 
+                break;
+            case USER_STATE::RESULT:
+                state_str = "RESULT";
+                break;
+            case USER_STATE::CONNECTED:
+            default:
+                state_str = "LOBBY";
+                break;
         }
+        
+        std::string pong = Protocol::PROTOCOL_HEADER + "PONG|" + state_str + "\n";
+        send(client_fd, pong.c_str(), pong.size(), 0);
+
+        return true;
+    }
 }

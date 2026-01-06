@@ -1,4 +1,4 @@
-CPP = g++
+CPP = g++ -g
 CPPFLAGS = -Wall -Wextra -I. -std=c++17
 
 # dir setup

@@ -6,11 +6,13 @@ Description: This script defines game scene of the game
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QGridLayout, QPushButton, QLabel, QVBoxLayout
+    QWidget, QGridLayout, QPushButton, QLabel, QVBoxLayout,
+    QHBoxLayout
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from core.styling import (
-    TITLE_FONT, LABEL_FONT
+    TITLE_FONT, LABEL_FONT,
+    BLUE_BTN_STYLE, RED_BTN_STYLE
 )
 
 
@@ -24,6 +26,7 @@ class GameScene(QWidget):
     """
     moveRequest = pyqtSignal(int, int)
     backToLobbyRequest = pyqtSignal()
+    rematchRequest = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -40,9 +43,17 @@ class GameScene(QWidget):
         self.opponent_label = QLabel("", self)
         self.board_buttons = [] # 2D array [y][x]
         
+        # Back btn
         self.back_btn = QPushButton("BACK TO LOBBY", self)
         self.back_btn.clicked.connect(self.backToLobbyRequest.emit)
-        self.back_btn.hide()
+        
+        # Rematch btn
+        self.rematch_btn = QPushButton("REMATCH", self)
+        self.rematch_btn.clicked.connect(self.rematchRequest.emit)
+        
+        # Btn container
+        self.end_game_container = QWidget()
+        self.end_game_container.hide()
 
         self._setupUI()
 
@@ -95,8 +106,19 @@ class GameScene(QWidget):
         layout.addLayout(grid_layout)
         layout.addStretch()
 
-        # Back btn
-        layout.addWidget(self.back_btn, alignment=Qt.AlignmentFlag.AlignHCenter)
+        # Btn setup
+        self.rematch_btn.setStyleSheet(BLUE_BTN_STYLE)
+        self.back_btn.setStyleSheet(RED_BTN_STYLE)
+
+        button_layout = QHBoxLayout(self.end_game_container)
+        button_layout.addStretch(1)
+        button_layout.addWidget(self.back_btn)
+        button_layout.addSpacing(20)
+        button_layout.addWidget(self.rematch_btn)
+        button_layout.addStretch(1)
+
+        layout.addWidget(self.end_game_container)
+        layout.addStretch()
 
         self.setLayout(layout)
 
@@ -113,7 +135,7 @@ class GameScene(QWidget):
         self.opponent_nick = opponent_nick
         self.status_label.setText(f"You are playing as: {my_symbol}")
         self.opponent_label.setText(f"Opponent: {opponent_nick}")
-        self.back_btn.hide()
+        self.end_game_container.hide()
         self.board_enabled = True
         
         # Initial draw (X starts)
@@ -210,7 +232,7 @@ class GameScene(QWidget):
         """
         self.board_enabled = False
         self._setGridEnabled(False)
-        self.back_btn.show()
+        self.end_game_container.show()
 
         if result_code == "WIN":
             if winner_nick == self.opponent_nick:

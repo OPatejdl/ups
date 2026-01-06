@@ -57,6 +57,7 @@ class MainWindow(QMainWindow):
         self.scene_manager.addWidget(self.game_scene)
         self.game_scene.moveRequest.connect(self.network.sendMove)
         self.game_scene.backToLobbyRequest.connect(self.onBackToLobby)
+        self.game_scene.rematchRequest.connect(self.network.sentFindRequest)
 
         # Network Logic Connections
         self.network.waiting.connect(self.onWaiting)
@@ -109,8 +110,8 @@ class MainWindow(QMainWindow):
             self.scene_manager.setCurrentWidget(self.lobby_scene)
         elif (code == 1):
             # Reconnect successful
-            print("Reconnected! Sending PING to sync state...")
-            self.network.sendPing()
+            print("Reconnected! Sending SYNC to sync state...")
+            self.network.sendSync()
         else:
             print(f"Login failed with code {code}")
 

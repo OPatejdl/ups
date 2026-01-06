@@ -14,6 +14,7 @@ enum class USER_STATE {
     LOBBY = 1,
     WAITING = 2,
     IN_GAME = 3,
+    RESULT = 4,
 };
 
 class User {

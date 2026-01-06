@@ -27,6 +27,7 @@ class Room {
 public:
     int id;                 /** Unique identifier of the room */
     ROOM_STATE state;       /** Current state of the game/room */
+    std::string winner_nickname = "";           /** Nickname of the winner (empty if still playing or DRAW) */
     
     /**
      * Constructor to initialize a new room.
