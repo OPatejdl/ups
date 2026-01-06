@@ -110,17 +110,15 @@ class NetworkClient(QObject):
     # --- Connection Handling and Data Receiving Func ---
 
     def _checkConnection(self):
-        """
-        Heartbeat function
-        """
-        if not self.running:
+        if not self.running or self.reconnect_active:
             return
 
-        # Server doesn't response
         if time.time() - self.last_response_time > 6.0:
             print("Heartbeat timeout! Server neodpovídá.")
-            self.error.emit("Connection timed out (Lost connection).")
+            # Zastavíme timer okamžitě, aby se nespouštěl reconnect duplicitně
+            QMetaObject.invokeMethod(self.heartbeat_timer, "stop", Qt.ConnectionType.QueuedConnection)
             
+            self.error.emit("Connection timed out (Lost connection).")
             self._startReconnect() 
             return
 
@@ -162,7 +160,8 @@ class NetworkClient(QObject):
         except Exception as e:
             print(f"Critical Loop Error: {e}")
         finally:
-            self.disconnect()
+            if not self.reconnect_active:
+                self.disconnect()
 
     def _handleMsg(self, msg: str):
         """
@@ -367,17 +366,22 @@ class NetworkClient(QObject):
         threading.Thread(target=self._reconnectLoop, daemon=True).start()
 
     def _reconnectLoop(self):
+        self.reconnect_attempts = 0
         while self.reconnect_attempts < self.max_reconnect_attempts:
             self.reconnect_attempts += 1
             print(f"🔄 Pokus o reconnect {self.reconnect_attempts}/{self.max_reconnect_attempts}")
             
             try:
                 # New socket
-                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.socket.connect((self.current_host, self.current_port))
+                new_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                new_sock.settimeout(5) # Nedovolíme connectu viset věčně
+                new_sock.connect((self.current_host, self.current_port))
+                new_sock.settimeout(None)
                 
-                # Create new thread
+                self.socket = new_sock
                 self.running = True
+
+                # Create new thread
                 self.thread = threading.Thread(target=self._receiveLoop, args=(self.socket,), daemon=True)
                 self.thread.start()
 
@@ -386,14 +390,18 @@ class NetworkClient(QObject):
                 self.reconnect_active = False
                 self.reconnect_attempts = 0
                 self.last_response_time = time.time()
+
+                # Restartujeme heartbeat timer
+                QMetaObject.invokeMethod(self.heartbeat_timer, "start", Qt.ConnectionType.QueuedConnection)
+
                 print("✅ Reconnect úspěšný!")
                 return
 
             except Exception as e:
-                print(f"❌ Pokus selhal: {e}")
+                print(f"Attempt failed: {e}")
                 time.sleep(2)
 
         # Attempts exceeded
-        print("❌ Nepodařilo se obnovit spojení.")
+        print("Unable to reconnect to server.")
         self.reconnect_active = False
         self.disconnect()

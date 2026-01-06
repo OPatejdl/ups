@@ -2,8 +2,6 @@
 Filename: scene_manager.py
 Author: Ondrej Patejdl
 Contact: opatejdl@students.zcu.cz
-Date: 2025-10-08
-Version: 0.1.0
 Description: This script managing user data and scene content
 """
 from PyQt6.QtWidgets import (
@@ -60,6 +58,7 @@ class MainWindow(QMainWindow):
         self.network.gameStarted.connect(self.onGameStarted)
         self.network.stateSync.connect(self.onStateSync)
         self.network.gameEnded.connect(self.onBackToLobby)
+        self.network.disconnected.connect(self.onDisconnected)
 
         # In-Game Updates
         self.network.turnUpdate.connect(self.game_scene.updateBoard)
@@ -183,3 +182,10 @@ class MainWindow(QMainWindow):
 
     def onBackToLobby(self):
         self.scene_manager.setCurrentWidget(self.lobby_scene)
+
+    def onDisconnected(self):
+        """
+        Moves user to login page
+        Called as a reaction on disconnected signal
+        """
+        self.scene_manager.setCurrentWidget(self.login_scene)
