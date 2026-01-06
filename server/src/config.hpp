@@ -24,8 +24,9 @@ namespace Config {
     inline constexpr const char* LOGGER_PATH = "../logs/server.log";
 
     // --- Allowed Timestemps ---
-    inline constexpr int ALLOWED_TIME_SEC = 60;
+    inline constexpr int DISCONNECT_ALLOWED_TIME_SEC = 60;
     inline constexpr int AUTH_TIMEOUT = 30;
+    inline constexpr int INACTIVE_ALLOWED_TIME_SEC = 6;
 
     // --- Select Setup ---
     inline constexpr int SEC_TIME = 5;

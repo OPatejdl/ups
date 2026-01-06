@@ -19,6 +19,7 @@ class UserManager {
         static void disconnect_user(int fd);
         static std::shared_ptr<User> get_user_by_fd(int fd);
         static int handle_login(int client_fd, const std::string& nick);
+        static std::vector<int> get_timeouted_users(std::chrono::seconds timeout);
 };
 
 #endif

@@ -44,10 +44,18 @@ namespace MyServer {
                 }
                 LOG_ERROR("Select failed");
                 break;
-            } 
+            }
+
+            // Check users activity
+            auto dead_sockets = UserManager::get_timeouted_users(std::chrono::seconds(Config::INACTIVE_ALLOWED_TIME_SEC));
+            
+            for (int dead_fd : dead_sockets) {
+                LOG_WARNING("User timeout detected (no activity) on fd: " + std::to_string(dead_fd));
+                handle_disconnection(dead_fd);
+            }
             
             // Cleanup process
-            auto expired_users = UserManager::cleanup_users(std::chrono::seconds(Config::ALLOWED_TIME_SEC));
+            auto expired_users = UserManager::cleanup_users(std::chrono::seconds(Config::DISCONNECT_ALLOWED_TIME_SEC));
 
             if (!expired_users.empty()) {
                 for (auto& user : expired_users) {
@@ -163,7 +171,6 @@ namespace MyServer {
         LOG_INFO("New client socket connected on fd: " + std::to_string(client_socket));
 
         msg = Protocol::PROTOCOL_HEADER + "AUTH|1\n";
-        // ZMĚNA: send -> send_all
         send_all(client_socket, msg);
     }
 

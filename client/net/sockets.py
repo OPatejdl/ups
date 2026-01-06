@@ -59,6 +59,11 @@ class NetworkClient(QObject):
         self.heartbeat_timer.timeout.connect(self._checkConnection)
         self.heartbeat_timer.setInterval(2000)
 
+        # Reconnect setup
+        self.reconnect_active: bool = False
+        self.reconnect_attempts: int = 0
+        self.max_reconnect_attempts: int = 10
+
     def connectToServer(self, host: str, port: int, nickname: str) -> None:
         """
         Creates socket and connects to a server
@@ -109,7 +114,6 @@ class NetworkClient(QObject):
         Heartbeat function
         """
         if not self.running:
-            self.heartbeat_timer.stop()
             return
 
         # Server doesn't response
@@ -117,7 +121,7 @@ class NetworkClient(QObject):
             print("Heartbeat timeout! Server neodpovídá.")
             self.error.emit("Connection timed out (Lost connection).")
             
-            self.disconnect() 
+            self._startReconnect() 
             return
 
         self.sendPing()
@@ -353,3 +357,43 @@ class NetworkClient(QObject):
                 self.socket.sendall(msg.encode("utf-8"))
             except:
                 pass
+
+    # Reconnect Logic
+    def _startReconnect(self):
+        self.reconnect_active = True
+        self.socket.close()
+        
+        # Spustíme reconnect ve vlákně, aby nezamrzlo GUI
+        threading.Thread(target=self._reconnectLoop, daemon=True).start()
+
+    def _reconnectLoop(self):
+        while self.reconnect_attempts < self.max_reconnect_attempts:
+            self.reconnect_attempts += 1
+            print(f"🔄 Pokus o reconnect {self.reconnect_attempts}/{self.max_reconnect_attempts}")
+            
+            try:
+                # New socket
+                self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.socket.connect((self.current_host, self.current_port))
+                
+                # Create new thread
+                self.running = True
+                self.thread = threading.Thread(target=self._receiveLoop, args=(self.socket,), daemon=True)
+                self.thread.start()
+
+                self.sendLogin(self.nickname)
+                
+                self.reconnect_active = False
+                self.reconnect_attempts = 0
+                self.last_response_time = time.time()
+                print("✅ Reconnect úspěšný!")
+                return
+
+            except Exception as e:
+                print(f"❌ Pokus selhal: {e}")
+                time.sleep(2)
+
+        # Attempts exceeded
+        print("❌ Nepodařilo se obnovit spojení.")
+        self.reconnect_active = False
+        self.disconnect()
