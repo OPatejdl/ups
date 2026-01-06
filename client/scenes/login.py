@@ -2,8 +2,6 @@
 Filename: login.py
 Author: Ondrej Patejdl
 Contact: opatejdl@students.zcu.cz
-Date: 2025-10-08
-Version: 0.1.0
 Description: This script defines login scene of the game
 """
 
@@ -14,7 +12,7 @@ from PyQt6.QtWidgets import (
     QFormLayout, QVBoxLayout, QHBoxLayout
 )
 from core.constants import (
-    LOGIN_SPACING
+    DEFAULT_SPACING
 )
 from core.styling import (
     TITLE_FONT, LABEL_FONT
@@ -110,9 +108,9 @@ class LoginScene(QWidget):
         login_layout.addStretch(3)
         login_layout.addWidget(title_label,
                                alignment=Qt.AlignmentFlag.AlignHCenter)
-        login_layout.addSpacing(LOGIN_SPACING)
+        login_layout.addSpacing(DEFAULT_SPACING)
         login_layout.addLayout(hbox_form)
-        login_layout.addSpacing(LOGIN_SPACING)
+        login_layout.addSpacing(DEFAULT_SPACING)
         login_layout.addLayout(hbox_btn)
         login_layout.addStretch(3)
         self.setLayout(login_layout)

@@ -27,17 +27,32 @@ void UserManager::remove_user(int fd) {
     }
 }
 
-void UserManager::cleanup_users(std::chrono::seconds timeout) {
+std::vector<std::shared_ptr<User>> UserManager::cleanup_users(std::chrono::seconds timeout) {
     auto now = std::chrono::steady_clock::now();
-    for (size_t i = 0; i < user_list.size(); i++) {
-        if (user_list[i]->fd_socket == Protocol::DISCONNECTED_USER_SOCKET) {
-            auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - user_list[i]->last_active);
+    std::vector<std::shared_ptr<User>> removed_users;
+
+    for (auto it = user_list.begin(); it != user_list.end(); ) {
+
+        if ((*it)->fd_socket == Protocol::DISCONNECTED_USER_SOCKET) {
+            auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - (*it)->last_active);
+            
             if (duration > timeout) {
-                LOG_INFO("Inactive timeout exceeded: removing user" + user_list[i]->nickname);
-                user_list.erase(user_list.begin() + i);
+                LOG_INFO("Inactive timeout exceeded: removing user " + (*it)->nickname);
+                
+                // Store user
+                removed_users.push_back(*it);
+
+                // Remove user from list
+                it = user_list.erase(it); 
+            } else {
+                ++it;
             }
+        } else {
+            ++it;
         }
     }
+
+    return removed_users;
 }
 
 void UserManager::disconnect_user(int fd) {

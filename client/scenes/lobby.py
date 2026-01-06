@@ -2,8 +2,6 @@
 Filename: lobby.py
 Author: Ondrej Patejdl
 Contact: opatejdl@students.zcu.cz
-Date: 2025-10-08
-Version: 0.1.0
 Description: This script defines lobby scenes of the game
 """
 
@@ -15,10 +13,11 @@ from PyQt6.QtWidgets import (
     QHBoxLayout
 )
 from core.constants import (
-    LOGIN_SPACING
+    DEFAULT_SPACING
 )
 from core.styling import (
-    TITLE_FONT, LABEL_FONT
+    TITLE_FONT, LABEL_FONT, 
+    BLUE_BTN_STYLE, RED_BTN_STYLE
 )
 
 
@@ -87,30 +86,10 @@ class LobbyScene(QWidget):
         info_layout.addLayout(connection_layout)
 
         # --- Buttons Set up ---
-        self.findGame_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007BFF;
-            }
-            QPushButton:hover {
-                background-color: #33A1FF;
-            }
-            QPushButton:pressed {
-                background-color: #0056B3;
-            }
-        """)
+        self.findGame_btn.setStyleSheet(BLUE_BTN_STYLE)
         self.findGame_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        self.exit_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF3B3B;
-            }
-            QPushButton:hover {
-                background-color: #FF6666;
-            }
-            QPushButton:pressed {
-                background-color: #CC0000;
-            }
-        """)
+        self.exit_btn.setStyleSheet(RED_BTN_STYLE)
         self.exit_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         button_layout = QHBoxLayout()
