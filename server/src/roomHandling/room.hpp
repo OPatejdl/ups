@@ -100,6 +100,13 @@ public:
      */
     std::shared_ptr<User> handle_player_disconnect(int fd);
 
+    /**
+     * Gets the opponent of the player with given fd.
+     * @param fd File descriptor of the player.
+     * @return Shared pointer to the opponent user, or nullptr if not found/only one player.
+     */
+    std::shared_ptr<User> get_opponent(int fd);
+
     void remove_player_by_fd(int fd);
 
 private:

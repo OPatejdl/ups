@@ -21,10 +21,6 @@ from scenes.waiting import WaitingScene
 from scenes.game import GameScene
 from net.sockets import NetworkClient
 
-
-
-
-
 class MainWindow(QMainWindow):
 
     def __init__(self):
@@ -137,22 +133,33 @@ class MainWindow(QMainWindow):
         self.scene_manager.setCurrentWidget(self.game_scene)
 
     def onStateSync(self, state, data):
-        """Called on PONG response (reconnect logic)"""
-        print("here I am", state, data)
-        if state == "LOBBY":
+        """Called on SYNC response (reconnect logic)"""
+        # LOBBY reconnect
+        if (state == "LOBBY"):
             self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
             self.scene_manager.setCurrentWidget(self.lobby_scene)
         
-        elif state == "WAITING":
+        # Waiting reconnect
+        elif (state == "WAITING"):
             self.scene_manager.setCurrentWidget(self.waiting_scene)
             self.network.sentFindRequest()
         
-        elif state == "GAME":
-            self.game_scene.syncGame(
+        # Playing game reconnect
+        elif (state == "GAME"):
+            self.game_scene.syncPlayingGame(
                 data["symbol"], 
                 data["board"], 
                 data["turn"], 
                 data["opponent"]
+            )
+            self.scene_manager.setCurrentWidget(self.game_scene)
+
+        # Finished game reconnect
+        elif (state == "RESULT"):
+            self.game_scene.syncFinishedGame(
+                data["opponent"],
+                data["board"],
+                data["winner"]
             )
             self.scene_manager.setCurrentWidget(self.game_scene)
 

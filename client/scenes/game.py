@@ -141,7 +141,7 @@ class GameScene(QWidget):
         # Initial draw (X starts)
         self.updateBoard(board_str, 'X')
 
-    def syncGame(self, my_symbol, board_str, turn_symbol, opponent_nick):
+    def syncPlayingGame(self, my_symbol: str, board_str: str, turn_symbol: str, opponent_nick: str):
         """
         Called after RECONNECT to restore game's state
 
@@ -272,3 +272,19 @@ class GameScene(QWidget):
             for btn in row:
                 if btn.text() == "":
                     btn.setEnabled(enabled)
+
+
+    def syncFinishedGame(self, opponent_nick: str, board_str: str, winner_nick:str):
+        """
+        Shows layout for finished game
+        """
+        self.opponent_nick = opponent_nick
+        self.opponent_label.setText(f"Opponent: {opponent_nick}")
+        
+        self.updateBoard(board_str, "-")
+        
+        result_code = "WIN" if winner_nick else "DRAW"
+        self.handleResult(result_code, winner_nick)
+        
+        self.end_game_container.show()
+        self.back_btn.show()

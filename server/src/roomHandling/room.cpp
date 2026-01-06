@@ -137,19 +137,20 @@ std::shared_ptr<User> Room::handle_player_disconnect(int fd) {
 
     // Game runs
     if (state == ROOM_STATE::PLAYING) {
-
-        std::shared_ptr<User> opponent = nullptr;
-        for (const auto& p : players) {
-            if (p->fd_socket != fd) {
-                opponent = p;
-                break;
-            }
-        }
-
+        std::shared_ptr<User> opponent = get_opponent(fd);
         LOG_INFO("Room " + std::to_string(id) + " -> Player disconnected. Game PAUSED.");
         return opponent;
     }
 
+    return nullptr;
+}
+
+std::shared_ptr<User> Room::get_opponent(int fd) {
+    for (const auto& p : players) {
+        if (p->fd_socket != fd) {
+            return p;
+        }
+    }
     return nullptr;
 }
 

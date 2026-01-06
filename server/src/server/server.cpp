@@ -406,10 +406,8 @@ namespace MyServer {
                     char my_symbol = (room->get_players()[RoomConfig::FIRST_PLAYER]->fd_socket == client_fd) ? 'X' : 'O';
                     
                     // Get user nick
-                    std::string opponent_nick = "Unknown";
-                    for (auto& p : room->get_players()) {
-                        if (p->fd_socket != client_fd) opponent_nick = p->nickname;
-                    }
+                    auto opponent = room->get_opponent(client_fd);
+                    std::string opponent_nick = (opponent) ? opponent->nickname : "Unknown";
 
                     sync_msg = "SYNC|GAME|" 
                             + std::string(1, my_symbol) + "|" 
@@ -435,10 +433,13 @@ namespace MyServer {
             case USER_STATE::RESULT: {
                 auto room = RoomManager::get_room_by_user_fd(client_fd);
                 if (room) {
-                    // SYNC|RESULT|<board>|<winner>
-                    sync_msg = "SYNC|RESULT|" + room->get_board_string() + "|" + room->winner_nickname;
+                    // Find opponent nickname
+                    auto opponent = room->get_opponent(client_fd);
+                    std::string opponent_nick = (opponent) ? opponent->nickname : "Unknown";
+
+                    // SYNC|RESULT|<opponent_nick>|<board>|<winner_nick>
+                    sync_msg = "SYNC|RESULT|" + opponent_nick + "|" + room->get_board_string() + "|" + room->winner_nickname;
                 } else {
-                    // Room doesn't exist - timeout or opponent left game either
                     user->state = USER_STATE::CONNECTED;
                     sync_msg = "SYNC|LOBBY";
                 }

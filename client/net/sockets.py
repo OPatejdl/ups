@@ -2,13 +2,14 @@
 Filename: sockets.py
 Author: Ondrej Patejdl
 Contact: opatejdl@students.zcu.cz
-Description: TODO
+Description: This script is used to handle the network connection of the game
 """
 import socket
 import threading
 import time
 from PyQt6.QtCore import (
-    QObject, pyqtSignal, QTimer
+    QObject, pyqtSignal, QTimer,
+    Qt, QMetaObject
 )
 from core.protocol import *
 
@@ -45,6 +46,11 @@ class NetworkClient(QObject):
         self.running = False
         self.header = HEADER
 
+        # Client Identifier
+        self.nickname = ""
+        self.current_host = ""
+        self.current_port = 0
+
         # Heartbeat setup
         self.last_response_time = 0
         self.heartbeat_timer = QTimer()
@@ -61,6 +67,7 @@ class NetworkClient(QObject):
             nickname: Nickname of user
         """
         try:
+            self.nickname = nickname
             # Recycle - invalid login
             if self.running and self.socket:
                 if getattr(self, 'current_host', None) == host and getattr(self, 'current_port', None) == port:
@@ -85,14 +92,14 @@ class NetworkClient(QObject):
             self.heartbeat_timer.start()
 
             # Thread for reading data
-            self.thread = threading.Thread(target=self._receiveLoop, args=(nickname,), daemon=True)
+            self.thread = threading.Thread(target=self._receiveLoop, daemon=True)
             self.thread.start()
             self.connected.emit()
         
         except Exception as e:
             self.error.emit(str(e))
 
-    def _receiveLoop(self, nickname):
+    def _receiveLoop(self):
         """
         Main loop for receiving messages
         """
@@ -113,7 +120,7 @@ class NetworkClient(QObject):
                     buffer += data
                     while "\n" in buffer:
                         line, buffer = buffer.split("\n", 1)
-                        self._handleMsg(line, nickname)
+                        self._handleMsg(line)
 
                 except OSError as e:
                     if self.running:
@@ -125,7 +132,7 @@ class NetworkClient(QObject):
         finally:
             self.disconnect()
 
-    def _handleMsg(self, msg: str, nickname: str):
+    def _handleMsg(self, msg: str):
         """
         Message handling function
         """
@@ -138,7 +145,7 @@ class NetworkClient(QObject):
 
         # Authentication check
         if cmd == "AUTH" and parts[1] == "1":
-            self.sendLogin(nickname)
+            self.sendLogin(self.nickname)
 
         # Response for login
         elif cmd == "LOGIN":
@@ -196,17 +203,13 @@ class NetworkClient(QObject):
                 }
             
             elif (state == "RESULT"):
-                # SYNC|RESULT|<board>|<winner_nick>
-                if len(parts) >= 4:
-                    board = parts[2]
-                    winner = parts[3]
-                    
-                    # Show board
-                    self.turnUpdate.emit(board, "-")
-                    
-                    # Show result
-                    res_code = "WIN" if winner else "DRAW"
-                    self.gameResult.emit(res_code, winner)
+                # SYNC|RESULT|<opponent_nick>|<board>|<winner_nick>
+                if len(parts) >= 5:
+                    data = {
+                        "opponent": parts[2],
+                        "board": parts[3],
+                        "winner": parts[4]
+                    }
             
             self.stateSync.emit(state, data)
 
@@ -244,12 +247,13 @@ class NetworkClient(QObject):
         Set its self to disconnected form
         """
         self.running = False
-        self.heartbeat_timer.stop()
+        QMetaObject.invokeMethod(self.heartbeat_timer, "stop", Qt.ConnectionType.QueuedConnection)
         if (self.socket):
             try:
                 self.socket.close()
             except:
                 pass
+            self.socket = None
         self.disconnected.emit()
 
     def sentFindRequest(self):
