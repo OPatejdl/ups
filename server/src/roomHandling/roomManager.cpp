@@ -43,6 +43,8 @@ std::shared_ptr<Room> RoomManager::get_room_by_user_fd(int fd) {
 
 void RoomManager::cleanup_empty_rooms() {
     auto i = rooms.begin();
+
+    // Iterate through rooms and find empty
     while (i != rooms.end()) {
         if ((*i)->is_empty()) {
             LOG_INFO("Removing empty room ID: " + std::to_string((*i )->id));
@@ -55,7 +57,8 @@ void RoomManager::cleanup_empty_rooms() {
 
 void RoomManager::remove_room(int room_id) {
     for (auto it = rooms.begin(); it != rooms.end(); ++it) {
-        // Pokud najdeme místnost se shodným ID
+    
+        // Try to find room with ID
         if ((*it)->id == room_id) {
             LOG_INFO("Removing room ID: " + std::to_string(room_id));
             

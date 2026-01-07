@@ -46,7 +46,7 @@ namespace Utility {
             }
 
             // Value at least 1
-            if (value < 1) {
+            if (value < Config::MIN_PARAM_VALUE) {
                 msg = "Value of each parameter needs to be 1 or higher";
                 LOG_ERROR(msg);
                 throw MyExceptions::UtilityException(ERROR_INVALID_PARAM);

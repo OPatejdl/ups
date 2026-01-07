@@ -485,7 +485,7 @@ namespace MyServer {
     }
 
     bool Server::handle_move(int client_fd, std::shared_ptr<User> user, const std::vector<std::string>& parts) {
-        if (parts.size() < 3) {
+        if (parts.size() < Protocol::MOVE_ARGS) {
             LOG_WARNING("Invalid amount of parameters for MOVE by user: " + user->nickname  + " -> Disconnecting...");
             handle_disconnection(client_fd);
             return false;
@@ -496,8 +496,8 @@ namespace MyServer {
 
         try {
             // Check int
-            int x = std::stoi(parts[1]);
-            int y = std::stoi(parts[2]);
+            int x = std::stoi(parts[Protocol::MOVE_X_POS]);
+            int y = std::stoi(parts[Protocol::MOVE_Y_POS]);
 
             // Process move - returns game_rsp
             std::string game_response = room->process_move(client_fd, x, y);
@@ -543,7 +543,8 @@ namespace MyServer {
 
             return true;
         } catch (const std::exception& e) {
-            LOG_WARNING("Invalid integer format in MOVE command from user: " + user->nickname + "-> Disconnecting....");
+            LOG_WARNING("Invalid integer format in MOVE command from user: " + 
+                user->nickname + "-> Disconnecting....");
             handle_disconnection(client_fd);
             return false;
         }
@@ -561,7 +562,7 @@ namespace MyServer {
             case USER_STATE::IN_GAME: {
                 auto room = RoomManager::get_room_by_user_fd(client_fd);
                 if (room) {
-                    char my_symbol = (room->get_players()[RoomConfig::FIRST_PLAYER]->fd_socket == client_fd) ? 'X' : 'O';
+                    char my_symbol = (room->get_players()[RoomConfig::FIRST_PLAYER]->fd_socket == client_fd) ? Protocol::ST_PLAYER_CHAR : Protocol::ND_PLAYER_CHAR;
                     
                     // Get user nick
                     auto opponent = room->get_opponent(client_fd);
@@ -675,7 +676,9 @@ namespace MyServer {
             int turn_index = room->get_turn_index();
             
             for (auto& p : players) {
-                char p_sym = (p->fd_socket == players[turn_index]->fd_socket) ? current_symbol : ((current_symbol == 'X') ? 'O' : 'X');
+                char p_sym = (p->fd_socket == players[turn_index]->fd_socket) ? current_symbol : 
+                    ((current_symbol == Protocol::ST_PLAYER_CHAR) ? Protocol::ND_PLAYER_CHAR : Protocol::ST_PLAYER_CHAR);
+            
                 auto opp = room->get_opponent(p->fd_socket);
                 
                 // MSG: GAME|START_X|<opp_nick>|<board>
@@ -688,7 +691,8 @@ namespace MyServer {
             }
         } else {
             // Inform about waiting for opponent response
-            send_all(client_fd, Protocol::PROTOCOL_HEADER + "GAME" + Protocol::SPLITTER + "REMATCH_WAIT" + Protocol::PROTOCOL_END);
+            send_all(client_fd, Protocol::PROTOCOL_HEADER + "GAME" + 
+                Protocol::SPLITTER + "REMATCH_WAIT" + Protocol::PROTOCOL_END);
         }
         return true;
     }
