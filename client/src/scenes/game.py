@@ -12,13 +12,13 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import (
     Qt, pyqtSignal, QTimer
 )
-from core.styling import (
+from src.core.styling import (
     TITLE_FONT, LABEL_FONT,
     BLUE_BTN_STYLE, RED_BTN_STYLE,
     TILE_STYLE, ORANGE_TXT_STYLE, GREEN_TXT_STYLE,
     STATUS_MSG_STYLE
 )
-from core.constants import *
+from src.core.constants import *
 
 
 class GameScene(QWidget):

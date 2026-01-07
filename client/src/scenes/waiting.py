@@ -12,11 +12,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import (
     Qt, pyqtSignal, QTimer
 )
-from core.styling import (
+from src.core.styling import (
     TITLE_FONT, LABEL_FONT,
     STATUS_MSG_STYLE, RED_BTN_STYLE
 )
-from core.constants import (
+from src.core.constants import (
     DEFAULT_SPACING, SPINNER_SPACE_UP,
     SPINNER_SPACE_DOWN, LEAVE_BTN_WIDTH,
     SPINNER_DOTS_OFFSET, SPINNER_DOTS_DIVIDE,

@@ -12,11 +12,11 @@ from PyQt6.QtWidgets import (
     QLabel, QVBoxLayout,
     QHBoxLayout
 )
-from core.constants import (
+from src.core.constants import (
     DEFAULT_SPACING, INFO_LAYOUT_SPACE,
     LOBBY_STRETCH_AVG, LOBBY_STRETCH_BOTTOM
 )
-from core.styling import (
+from src.core.styling import (
     TITLE_FONT, LABEL_FONT, 
     BLUE_BTN_STYLE, RED_BTN_STYLE
 )

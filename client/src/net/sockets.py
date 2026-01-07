@@ -11,8 +11,8 @@ from PyQt6.QtCore import (
     QObject, pyqtSignal, QTimer,
     Qt, QMetaObject
 )
-from core.protocol import *
-from core.constants import *
+from src.core.protocol import *
+from src.core.constants import *
 import logging
 
 logger = logging.getLogger(f"{LOG_NAME}.{__name__}")

@@ -9,7 +9,7 @@ Description: This script defines general styling used throughout the client
 
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QApplication
-from core.constants import (
+from src.core.constants import (
     TITLES_SIZE, LETTER_FONT,
     LABEL_SIZE, GAME_TEXT_SIZE,
     TXT_BOLD

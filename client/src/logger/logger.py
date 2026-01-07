@@ -8,7 +8,7 @@ Description: This script defines logger logic of the client's app
 import logging
 import os
 from datetime import datetime
-from core.constants import (
+from src.core.constants import (
     LOG_DIR, LOG_NAME, LOG_FILE_NAME
     )
 

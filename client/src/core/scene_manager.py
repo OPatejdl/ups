@@ -7,18 +7,18 @@ Description: This script managing user data and scene content
 from PyQt6.QtWidgets import (
     QMainWindow, QStackedWidget)
 from PyQt6.QtCore import pyqtSlot
-from core.constants import (
+from src.core.constants import (
     WINDOW_NAME,
     DEFAULT_X_POS, DEFAULT_Y_POS,
     DEFAULT_HEIGH, DEFAULT_WIDTH,
     LOG_NAME
 )
-from scenes.login import LoginScene
-from scenes.lobby import LobbyScene
-from scenes.waiting import WaitingScene
-from scenes.game import GameScene
-from net.sockets import NetworkClient
-from core.protocol import *
+from src.scenes.login import LoginScene
+from src.scenes.lobby import LobbyScene
+from src.scenes.waiting import WaitingScene
+from src.scenes.game import GameScene
+from src.net.sockets import NetworkClient
+from src.core.protocol import *
 import logging
 
 logger = logging.getLogger(f"{LOG_NAME}.{__name__}")

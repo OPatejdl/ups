@@ -11,12 +11,12 @@ from PyQt6.QtWidgets import (
     QWidget, QLineEdit, QPushButton, QLabel,
     QFormLayout, QVBoxLayout, QHBoxLayout
 )
-from core.constants import (
+from src.core.constants import (
     DEFAULT_SPACING, MIN_PORT,
     MAX_PORT, MIN_NICK_LEN, MAX_NICK_LEN,
     MIN_WIDTH, MAX_WIDTH, LOGIN_STRETCH
 )
-from core.styling import (
+from src.core.styling import (
     TITLE_FONT, LABEL_FONT, 
     STATUS_MSG_STYLE, LOGIN_BTN
 )
