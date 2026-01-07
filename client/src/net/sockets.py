@@ -501,8 +501,6 @@ class NetworkClient(QObject):
                 self.thread = threading.Thread(target=self._receiveLoop, args=(self.socket,), daemon=True)
                 self.thread.start()
 
-                self.sendLogin(self.nickname)
-                
                 self.reconnect_active = False
                 self.reconnect_attempts = INIT_RECONNECT_ATTEMPTS
                 self.last_response_time = time.time()
