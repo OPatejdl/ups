@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
         self.network.gameStarted.connect(self.onGameStarted)
         self.network.stateSync.connect(self.onStateSync)
         self.network.gameEnded.connect(self.onBackToLobby)
-        self.network.disconnected.connect(self.onDisconnected)
+        self.network.disconnected.connect(lambda: self.onDisconnected("Disconnected from server"))
         self.network.error.connect(self.onNetworkError)
 
         # In-Game Updates
@@ -202,11 +202,12 @@ class MainWindow(QMainWindow):
     def onBackToLobby(self):
         self.scene_manager.setCurrentWidget(self.lobby_scene)
 
-    def onDisconnected(self):
+    def onDisconnected(self, reason: str):
         """
         Moves user to login page
         Called as a reaction on disconnected signal
         """
+        self.login_scene.setErrorMsg(reason)
         self.scene_manager.setCurrentWidget(self.login_scene)
 
     def onNetworkError(self, err_msg: str):

@@ -320,9 +320,15 @@ namespace MyServer {
         std::string command = parts[Protocol::COMMAND_POS];
 
         if (user == nullptr) {
-            // Unknown user - only LOGIN|<param>
+            // Unknown user - only LOGIN|<param> or PONG|UNAUTH
             if (command == "LOGIN") {
                 return handle_login(client_fd, parts);
+            }
+            else if (command == "PING") {
+                std::string pong = Protocol::PROTOCOL_HEADER + "PONG" +
+                                Protocol::SPLITTER + "UNAUTH" + Protocol::PROTOCOL_END;
+                send_all(client_fd, pong);
+                return true;
             }
         } else {
             // Set activity

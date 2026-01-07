@@ -99,9 +99,7 @@ class NetworkClient(QObject):
 
             self.running = True
 
-            # Start heartbeat
             self.last_response_time = time.time()
-            self.heartbeat_timer.start()
 
             # Thread for reading data
             self.thread = threading.Thread(target=self._receiveLoop, args=(self.socket,), daemon=True)
@@ -197,6 +195,8 @@ class NetworkClient(QObject):
         # Response for login
         elif cmd == "LOGIN":
             res_code = int(parts[1])
+            if res_code in [0, 1]:
+                self.heartbeat_timer.start()
             self.loginResult.emit(res_code)
 
         # Waiting room
