@@ -33,6 +33,8 @@ LOGIN_STRETCH = 3
 
 # --- Lobby scene ---
 INFO_LAYOUT_SPACE = 10
+LOBBY_STRETCH_AVG = 1
+LOBBY_STRETCH_BOTTOM = 2
 
 # --- Waiting scene ---
 SPINNER_SPACE_UP = 10
