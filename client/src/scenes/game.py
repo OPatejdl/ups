@@ -137,6 +137,7 @@ class GameScene(QWidget):
         self.opponent_nick = opponent_nick
         self.status_label.setText(f"You are playing as: {my_symbol}")
         self.opponent_label.setText(f"Opponent: {opponent_nick}")
+        self.rematch_btn.setText("Rematch")
         self.end_game_container.hide()
         self.board_enabled = True
         

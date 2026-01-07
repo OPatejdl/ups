@@ -200,7 +200,7 @@ class NetworkClient(QObject):
 
         payload = msg[len(self.header):]
         parts = payload.split(SPLITTER)
-        if (len(parts) < MIN_ARGS):
+        if len(parts) < MIN_ARGS:
             return
 
         cmd = parts[CMD_POS]
@@ -212,7 +212,7 @@ class NetworkClient(QObject):
 
         # Response for login
         elif cmd == "LOGIN":
-            if (len(parts) != LOGIN_ARGS):
+            if len(parts) < LOGIN_ARGS:
                 return
 
             res_code = int(parts[CODE_POS])
@@ -238,7 +238,7 @@ class NetworkClient(QObject):
             sub_cmd = parts[GAME_CODE]
             if sub_cmd.startswith("START_"):
                 # Format: GAME|<start_symbol>|<opponent_nick>|<board>
-                if len(parts) != GAME_START_ARGS:
+                if len(parts) < GAME_START_ARGS:
                     return
 
                 my_symbol = sub_cmd.split("_")[GAME_START_SYM]
@@ -309,7 +309,7 @@ class NetworkClient(QObject):
         elif cmd == "SYNC":
             # Format: SYNC|GAME|<symbol>|<board>|<turn>|<opponent>
             # OR: SYNC|LOBBY ...
-            if len(parts) != SYNC_MIN_ARGS:
+            if len(parts) < SYNC_MIN_ARGS:
                 return
 
             state = parts[SYNC_STATE]
