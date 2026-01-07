@@ -10,10 +10,13 @@ Description: This script defines entry point of application
 
 import sys
 from PyQt6.QtWidgets import QApplication
-from core.scene_manager import MainWindow
-from core.styling import setAppStyling
+from src.logger.logger import client_logger
+from src.core.scene_manager import MainWindow
+from src.core.styling import setAppStyling
 
 if __name__ == "__main__":
+    client_logger.info("--- Starting Tic-Tac-Toe Client App")
+
     app = QApplication(sys.argv)
     setAppStyling(app)
 

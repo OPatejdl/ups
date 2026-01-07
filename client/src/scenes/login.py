@@ -12,7 +12,9 @@ from PyQt6.QtWidgets import (
     QFormLayout, QVBoxLayout, QHBoxLayout
 )
 from core.constants import (
-    DEFAULT_SPACING
+    DEFAULT_SPACING, MIN_PORT,
+    MAX_PORT, MIN_NICK_LEN, MAX_NICK_LEN,
+    MIN_WIDTH, MAX_WIDTH, LOGIN_STRETCH
 )
 from core.styling import (
     TITLE_FONT, LABEL_FONT, 
@@ -84,8 +86,8 @@ class LoginScene(QWidget):
         form_layout.addRow(ip_label, self.ip_address_box)
         form_layout.addRow(port_label, self.port_box)
 
-        form.setMaximumWidth(400)
-        form.setMinimumWidth(200)
+        form.setMaximumWidth(MAX_WIDTH)
+        form.setMinimumWidth(MIN_WIDTH)
 
         # Create horizontal layout for centering
         hbox_form = QHBoxLayout()
@@ -105,7 +107,7 @@ class LoginScene(QWidget):
         # Set up login widget layout
         login_layout = QVBoxLayout()
 
-        login_layout.addStretch(3)
+        login_layout.addStretch(LOGIN_STRETCH)
         login_layout.addWidget(title_label,
                                alignment=Qt.AlignmentFlag.AlignHCenter)
         login_layout.addWidget(self.status_msg)
@@ -113,7 +115,7 @@ class LoginScene(QWidget):
         login_layout.addLayout(hbox_form)
         login_layout.addSpacing(DEFAULT_SPACING)
         login_layout.addLayout(hbox_btn)
-        login_layout.addStretch(3)
+        login_layout.addStretch(LOGIN_STRETCH)
         self.setLayout(login_layout)
 
     def _onLoginBtnClick(self):
@@ -132,14 +134,14 @@ class LoginScene(QWidget):
             return
 
         # Nick length check
-        if len(nick) < 4 or len(nick) > 12:
-            self.setErrorMsg("Nickname must be 4-12 characters.")
+        if len(nick) < MIN_NICK_LEN or len(nick) > MAX_NICK_LEN:
+            self.setErrorMsg(f"Nickname must be {MIN_NICK_LEN}-{MAX_NICK_LEN} characters.")
             return
         
         # Port validation
         try:
             port = int(port_raw)
-            if not (1024 <= port <= 65535):
+            if not (MIN_PORT <= port <= MAX_PORT):
                 raise ValueError()
         except ValueError:
             self.setErrorMsg("Port must be a number between 1024-65535.")

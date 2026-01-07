@@ -13,7 +13,8 @@ from PyQt6.QtWidgets import (
     QHBoxLayout
 )
 from core.constants import (
-    DEFAULT_SPACING
+    DEFAULT_SPACING, INFO_LAYOUT_SPACE,
+    LOBBY_STRETCH_AVG, LOBBY_STRETCH_BOTTOM
 )
 from core.styling import (
     TITLE_FONT, LABEL_FONT, 
@@ -73,13 +74,13 @@ class LobbyScene(QWidget):
         # -- Username line --
         username_layout = QHBoxLayout()
         username_layout.addWidget(username_label)
-        username_layout.addSpacing(10)
+        username_layout.addSpacing(INFO_LAYOUT_SPACE)
         username_layout.addWidget(self.usernameInfo_label)
 
         # -- Connection info Line --
         connection_layout = QHBoxLayout()
         connection_layout.addWidget(connection_label)
-        connection_layout.addSpacing(10)
+        connection_layout.addSpacing(INFO_LAYOUT_SPACE)
         connection_layout.addWidget(self.connectionInfo_label)
 
         info_layout.addLayout(username_layout)
@@ -97,26 +98,26 @@ class LobbyScene(QWidget):
         self.exit_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         button_layout = QHBoxLayout()
-        button_layout.addStretch(1)
+        button_layout.addStretch(LOBBY_STRETCH_AVG)
         button_layout.addWidget(self.exit_btn)
-        button_layout.addSpacing(20)
+        button_layout.addSpacing(DEFAULT_SPACING)
         button_layout.addWidget(self.findGame_btn)
-        button_layout.addStretch(1)
+        button_layout.addStretch(LOBBY_STRETCH_AVG)
 
         # --- Main Lobby layout ---
         lobby_layout = QVBoxLayout()
-        lobby_layout.addStretch(1)
+        lobby_layout.addStretch(LOBBY_STRETCH_AVG)
         lobby_layout.addWidget(title_label,
                                alignment=Qt.AlignmentFlag.AlignHCenter)
-        lobby_layout.addSpacing(20)
+        lobby_layout.addSpacing(DEFAULT_SPACING)
         lobby_layout.addLayout(info_layout)
 
-        lobby_layout.addSpacing(10)
+        lobby_layout.addSpacing(INFO_LAYOUT_SPACE)
         lobby_layout.addWidget(self.status_label)
 
-        lobby_layout.addSpacing(20)
+        lobby_layout.addSpacing(DEFAULT_SPACING)
         lobby_layout.addLayout(button_layout)
-        lobby_layout.addStretch(2)
+        lobby_layout.addStretch(LOBBY_STRETCH_BOTTOM)
 
         self.setLayout(lobby_layout)
 
@@ -129,7 +130,6 @@ class LobbyScene(QWidget):
         Emits:
         exitRequest signal
         """
-        print("Exit Btn Clicked")
         self.exitRequest.emit()
 
     def _findGameBtnClicked(self):
@@ -139,7 +139,6 @@ class LobbyScene(QWidget):
         Emits:
         findGameRequest signal
         """
-        print("FIND GAME btn clicked")
         self.findGameRequest.emit()
 
     def updateInfo(self, username: str, connectionInfo: str):
@@ -151,5 +150,4 @@ class LobbyScene(QWidget):
         color = "orange" if is_err else "transparent" # choose color
         self.status_label.setStyleSheet(f"color: {color}; font-weight: bold;")
         
-        # Deaktivujeme tlačítka, pokud je síť dole
         self.findGame_btn.setEnabled(not is_err)

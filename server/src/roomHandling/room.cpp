@@ -98,7 +98,6 @@ std::string Room::process_move(int fd, int x, int y) {
 
         LOG_INFO("Room: " + std::to_string(id) + "-> game finished - WINNER is " + this->winner_nickname +"!");
         return response("RESULT", Protocol::WIN) +
-                Protocol::SPLITTER + get_board_string() +
                 Protocol::SPLITTER + this->winner_nickname;
 
     } else if (check_draw()) {
@@ -109,7 +108,7 @@ std::string Room::process_move(int fd, int x, int y) {
         for (auto& p : players) p->state = USER_STATE::RESULT;
 
         LOG_INFO("Room: " + std::to_string(id) + "-> game finished - DRAW!");
-        return response("RESULT", Protocol::DRAW) + Protocol::SPLITTER + get_board_string();
+        return response("RESULT", Protocol::DRAW);
     }
 
     // Switch turn to the other player
@@ -117,7 +116,7 @@ std::string Room::process_move(int fd, int x, int y) {
     
     // Return success response with updated board
     LOG_INFO("Room: " + std::to_string(id) + "-> player made valid move");
-    return response("TURN", Protocol::VALID_MOVE) + Protocol::SPLITTER + get_board_string();
+    return response("TURN", Protocol::VALID_MOVE);
 }
 
 std::string Room::get_board_string() {
@@ -218,7 +217,9 @@ bool Room::check_draw() {
 }
 
 std::string Room::response(std::string tag, int code) {
-    return tag + Protocol::SPLITTER + std::to_string(code);
+    return tag +
+            Protocol::SPLITTER + std::to_string(code) +
+            Protocol::SPLITTER + get_board_string();
 }
 
 void Room::swap_players() {

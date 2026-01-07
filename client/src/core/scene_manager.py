@@ -6,28 +6,32 @@ Description: This script managing user data and scene content
 """
 from PyQt6.QtWidgets import (
     QMainWindow, QStackedWidget)
-from PyQt6.QtCore import (
-    Qt, pyqtSlot)
+from PyQt6.QtCore import pyqtSlot
 from core.constants import (
     WINDOW_NAME,
     DEFAULT_X_POS, DEFAULT_Y_POS,
     DEFAULT_HEIGH, DEFAULT_WIDTH,
+    LOG_NAME
 )
 from scenes.login import LoginScene
 from scenes.lobby import LobbyScene
 from scenes.waiting import WaitingScene
 from scenes.game import GameScene
 from net.sockets import NetworkClient
+from core.protocol import *
+import logging
+
+logger = logging.getLogger(f"{LOG_NAME}.{__name__}")
 
 class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        logger.info("Setting up UI")
 
         # Network setup
         self.network = NetworkClient()
         self.network.loginResult.connect(self.onLoginResult)
-        self.network.error.connect(lambda err: print(f"Connection Error: {err}"))
 
         self.scene_manager = QStackedWidget(self)
 
@@ -45,6 +49,7 @@ class MainWindow(QMainWindow):
         # Waiting Scene
         self.waiting_scene = WaitingScene()
         self.scene_manager.addWidget(self.waiting_scene)
+        self.waiting_scene.leaveRequest.connect(self.onLeaveWaiting)
 
         # Game Scene
         self.game_scene = GameScene()
@@ -60,6 +65,8 @@ class MainWindow(QMainWindow):
         self.network.gameEnded.connect(self.onBackToLobby)
         self.network.disconnected.connect(lambda: self.onDisconnected("Disconnected from server"))
         self.network.error.connect(self.onNetworkError)
+        self.network.turnError.connect(self.game_scene.displayTurnError)
+        self.network.rematchWait.connect(self.game_scene.showRematchWait)
 
         # In-Game Updates
         self.network.turnUpdate.connect(self.game_scene.updateBoard)
@@ -101,7 +108,7 @@ class MainWindow(QMainWindow):
         self.current_port = port
         self.network.connectToServer(ip, port, username)
 
-    def onLoginResult(self, code):
+    def onLoginResult(self, code: int):
         """
         Handles LOGIN msg from server
 
@@ -109,29 +116,29 @@ class MainWindow(QMainWindow):
             code - Specifies response on login request
         """
         # Set up msg
-        if (code < 2):
+        if code < LOGIN_FULL_SERVER:
             self.login_scene.setErrorMsg("")
         else:
             reasons = {
-                2: "Server is full",
-                3: "Nickname already taken.",
-                4: "Nickname is too long.",
-                5: "Nickname is too short."
+                LOGIN_FULL_SERVER: "Server is full",
+                LOGIN_NICK_DUPLICITY: "Nickname already taken.",
+                LOGIN_MAX_NICK_LEN: "Nickname is too long.",
+                LOGIN_MIN_NICK_LEN: "Nickname is too short."
             }
 
             msg = reasons.get(code, f"Login failed (Error {code})")
             self.login_scene.setErrorMsg(msg)
 
-        if (code == 0):
+        if code == LOGIN_SUCCESS:
             self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
             self.scene_manager.setCurrentWidget(self.lobby_scene)
-        elif (code == 1):
+        elif code == LOGIN_RECONNECT:
             # Reconnect successful
-            print("Reconnected! Sending SYNC to sync state...")
+            logger.info("Reconnected! Sending SYNC to sync state...")
             self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
             self.network.sendSync()
         else:
-            print(f"Login failed with code {code}")
+            logger.error(f"Login failed with code {code}")
 
     @pyqtSlot()
     def exitRequestHandler(self):
@@ -155,16 +162,25 @@ class MainWindow(QMainWindow):
         """
         self.scene_manager.setCurrentWidget(self.waiting_scene)
 
-    def onGameStarted(self, symbol, opponent, board):
+    def onGameStarted(self, symbol: str, opponent: str, board: str):
         """
         Called when match starts
+
+        Args
+            symbol - symbol of the player
+            opponent - nickname of the opponent
+            board - game board representation
         """
         self.game_scene.initializeGame(symbol, opponent, board)
         self.scene_manager.setCurrentWidget(self.game_scene)
 
-    def onStateSync(self, state, data):
+    def onStateSync(self, state: str, data: dict):
         """
         Called on SYNC response from server
+
+        Args
+            state - defining current state of client
+            data - specifies data if any needed
         """
         # Setup info and clean error msg
         self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
@@ -172,16 +188,16 @@ class MainWindow(QMainWindow):
         self.waiting_scene.setConnectionError("")
     
         # LOBBY reconnect
-        if (state == "LOBBY"):
+        if state == "LOBBY":
             self.scene_manager.setCurrentWidget(self.lobby_scene)
         
         # Waiting reconnect
-        elif (state == "WAITING"):
+        elif state == "WAITING":
             self.scene_manager.setCurrentWidget(self.waiting_scene)
             self.network.sendFindRequest()
         
         # Playing game reconnect
-        elif (state == "GAME"):
+        elif state == "GAME":
             self.game_scene.syncPlayingGame(
                 data["symbol"], 
                 data["board"], 
@@ -191,7 +207,7 @@ class MainWindow(QMainWindow):
             self.scene_manager.setCurrentWidget(self.game_scene)
 
         # Finished game reconnect
-        elif (state == "RESULT"):
+        elif state == "RESULT":
             self.game_scene.syncFinishedGame(
                 data["opponent"],
                 data["board"],
@@ -219,11 +235,22 @@ class MainWindow(QMainWindow):
 
         if current_scene == self.login_scene:
             self.login_scene.setErrorMsg(err_msg)
-        if current_scene == self.game_scene:
+
+        elif current_scene == self.game_scene:
             self.game_scene.setLocalConnectionErr(is_reconnecting=True)
+
         elif current_scene == self.lobby_scene:
             self.lobby_scene.setConnectionError(msg)
+
         elif current_scene == self.waiting_scene:
             self.waiting_scene.setConnectionError(msg)
         
-        print(f"Network error handled in UI: {err_msg}")
+        logger.error(f"Network error handled in UI: {err_msg}")
+
+    def onLeaveWaiting(self):
+        """
+        Handles request to leave the waiting room
+        """
+        logger.info("User is leaving the waiting queue")
+        self.network.sendLeave()
+        self.scene_manager.setCurrentWidget(self.lobby_scene)

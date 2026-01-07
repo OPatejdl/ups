@@ -267,8 +267,12 @@ namespace MyServer {
     }
 
     void Server::remove_client(int client_fd) {
+        LOG_INFO("Removing client: " + std::to_string(client_fd));
+
         // Inform client
-        std::string err_msg = "Error: Invalid protocol" + Protocol::PROTOCOL_END;
+        std::string err_msg = Protocol::PROTOCOL_HEADER + "Error" + 
+                            Protocol::SPLITTER + "Invalid protocol" +
+                            Protocol::PROTOCOL_END;
         send_all(client_fd, err_msg);
 
         // Remove client
@@ -306,7 +310,17 @@ namespace MyServer {
         if (msg.size() < header.size() || msg.substr(0, header.size()) != header) {
             // Remove user in case of invalid protocol
             LOG_WARNING("Invalid protocol header from fd: " + std::to_string(client_fd));
-            remove_client(client_fd);
+
+            auto user = UserManager::get_user_by_fd(client_fd);
+            if (user) {
+                // Handle for connected user
+                LOG_WARNING("Authorized client with fd: " + std::to_string(client_fd) + "used invalid header! - Disconnecting...");
+                handle_disconnection(client_fd);
+            } else {
+                //Handle for anonym client
+                LOG_WARNING("Unauthorized client with fd: " + std::to_string(client_fd) + "used invalid header! - Removing...");
+                remove_client(client_fd);
+            }
             return false;
         }
 
@@ -334,33 +348,48 @@ namespace MyServer {
             // Set activity
             user->last_active = std::chrono::steady_clock::now();
 
+            // Universal commands
+            if (command == "PING") {
+                return handle_ping(client_fd, user);
+            }
+            if (command == "SYNC") {
+                return handle_sync(client_fd, user);
+            }
+            if (command == "DISCONNECT") {
+                LOG_INFO("User " + user->nickname + " requested disconnect.");
+                handle_disconnection(client_fd);
+                return false;
+            }
+
+            // Commands based on the state
             if (command == "FIND") {
-                handle_find(client_fd, user);
+                if (user->state == USER_STATE::CONNECTED) {
+                    return handle_find(client_fd, user);
+                }
+                LOG_WARNING("User " + user->nickname + " sent FIND but is not in Lobby.");
             }
             else if (command == "MOVE") {
-                LOG_INFO("User" + user->nickname + " sent MOVE msg.");
-                handle_move(client_fd, parts);
-            }
-            else if (command == "SYNC") {
-                LOG_INFO("User" + user->nickname + " sent SYNC msg.");
-                handle_sync(client_fd, user);
-            }
-            else if (command == "PING") {
-                LOG_INFO("User" + user->nickname + " sent PING msg.");
-                handle_ping(client_fd, user);
+                if (user->state == USER_STATE::IN_GAME) {
+                    return handle_move(client_fd, user, parts);
+                }
+                LOG_WARNING("User " + user->nickname + " sent MOVE but is not in a match.");
             }
             else if (command == "REMATCH") {
-                LOG_INFO("User" + user->nickname + " sent REMATCH msg.");
-                handle_rematch(client_fd, user);
-            } 
-            else if (command == "LEAVE") {
-                LOG_INFO("User" + user->nickname + " sent LEAVE msg.");
-                handle_leave(client_fd, user);
+                if (user->state == USER_STATE::RESULT) {
+                    return handle_rematch(client_fd, user);
+                }
+                LOG_WARNING("User " + user->nickname + " sent REMATCH in invalid state.");
             }
-            else if (command == "DISCONNECT") {
-                LOG_INFO("User" + user->nickname + " sent DISCONNECT msg.");
+            else if (command == "LEAVE") {
+                if (user->state != USER_STATE::CONNECTED) {
+                    return handle_leave(client_fd, user);
+                }
+            }
+            else {
+                // Unknown command
+                LOG_ERROR("Unknown command '" + command + "' from user " + user->nickname);
                 handle_disconnection(client_fd);
-                return true;
+                return false;
             }
         } 
 
@@ -392,6 +421,7 @@ namespace MyServer {
     bool Server::handle_login(int client_fd, const std::vector<std::string>& parts) {
         // Validation of parameters
         if (parts.size() <= Protocol::NICK_PARAM_POS) {
+            LOG_WARNING("Invalid amount of parameters for LOGIN by client with fd: " + std::to_string(client_fd));
             remove_client(client_fd);
             return false;
         }
@@ -454,8 +484,10 @@ namespace MyServer {
         return true;
     }
 
-    bool Server::handle_move(int client_fd, const std::vector<std::string>& parts) {
+    bool Server::handle_move(int client_fd, std::shared_ptr<User> user, const std::vector<std::string>& parts) {
         if (parts.size() < 3) {
+            LOG_WARNING("Invalid amount of parameters for MOVE by user: " + user->nickname  + " -> Disconnecting...");
+            handle_disconnection(client_fd);
             return false;
         }
 
@@ -463,6 +495,7 @@ namespace MyServer {
         if (!room) return false; // Player not in the room
 
         try {
+            // Check int
             int x = std::stoi(parts[1]);
             int y = std::stoi(parts[2]);
 
@@ -475,12 +508,16 @@ namespace MyServer {
                 is_error = (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::OCCUPIED_FIELD)) != std::string::npos) ||
                                 (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::NOT_YOUR_TURN)) != std::string::npos) ||
                                 (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::INVALID_MOVE)) != std::string::npos) ||
-                                (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::PLAYER_NOT_BELONG)) != std::string::npos) ||
-                                (game_response.rfind("ERROR", 0) == 0);
+                                (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::PLAYER_NOT_BELONG)) != std::string::npos);
             }
 
             if (is_error) {
-                std::string full_msg = Protocol::PROTOCOL_HEADER + game_response + Protocol::PROTOCOL_END;
+                std::string next_turn_sym = std::string(1, room->get_current_turn_symbol());
+
+                std::string full_msg = Protocol::PROTOCOL_HEADER + game_response +
+                                    Protocol::SPLITTER + next_turn_sym +
+                                    Protocol::PROTOCOL_END;
+                
                 send_all(client_fd, full_msg);
             } 
             else {
@@ -506,7 +543,8 @@ namespace MyServer {
 
             return true;
         } catch (const std::exception& e) {
-            LOG_WARNING("Invalid integer format in MOVE command from fd: " + std::to_string(client_fd));
+            LOG_WARNING("Invalid integer format in MOVE command from user: " + user->nickname + "-> Disconnecting....");
+            handle_disconnection(client_fd);
             return false;
         }
 

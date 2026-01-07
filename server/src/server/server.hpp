@@ -65,7 +65,7 @@ namespace MyServer {
             // Function for certain types of msg handling
             bool handle_login(int client_fd, const std::vector<std::string>& parts);
             bool handle_find(int client_fd, std::shared_ptr<User> user);
-            bool handle_move(int client_fd, const std::vector<std::string>& parts);
+            bool handle_move(int client_fd, std::shared_ptr<User> user, const std::vector<std::string>& parts);
             bool handle_sync(int client_fd, std::shared_ptr<User> user);
             bool handle_rematch(int client_fd, std::shared_ptr<User> user);
             bool handle_leave(int client_fd, std::shared_ptr<User> user);
