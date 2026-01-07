@@ -316,3 +316,14 @@ class GameScene(QWidget):
         self.handleResult(game_result, winner_nick)
         
         self.end_game_container.show()
+
+    def setLocalConnectionErr(self, is_reconnecting: bool):
+        """
+        Informs user about local connection error
+        """
+        if is_reconnecting:
+            self.status_label.setText("CONNECTION LOST!")
+            self.turn_label.setText("Trying to reconnect...")
+            self.turn_label.setStyleSheet(ORANGE_TXT_STYLE)
+        self._setGridEnabled(False)
+        self.board_enabled = False

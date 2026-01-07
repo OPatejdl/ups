@@ -12,7 +12,6 @@ from PyQt6.QtCore import (
     Qt, QMetaObject
 )
 from core.protocol import *
-from typing import Literal
 
 class NetworkClient(QObject):
     """
@@ -75,6 +74,7 @@ class NetworkClient(QObject):
         """
         try:
             self.nickname = nickname
+
             # Recycle - invalid login
             if self.running and self.socket:
                 if getattr(self, "current_host", None) == host and getattr(self, "current_port", None) == port:
@@ -82,7 +82,7 @@ class NetworkClient(QObject):
                     self.sendLogin(nickname)
                     return
 
-            # end old connection on different server
+            # End old connection on different server
             if self.running:
                 self.disconnect()
             
@@ -91,7 +91,12 @@ class NetworkClient(QObject):
             self.current_port = port
 
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+            # Connection attempt
+            self.socket.settimeout(5.0)
             self.socket.connect((host, port))
+            self.socket.settimeout(None)
+
             self.running = True
 
             # Start heartbeat
@@ -103,8 +108,18 @@ class NetworkClient(QObject):
             self.thread.start()
             self.connected.emit()
         
+        except socket.gaierror:
+            # Invalid format
+            self.error.emit("Invalid IP address or Hostname")
+        except ConnectionRefusedError:
+            # Server doesn't listen on this port
+            self.error.emit("Server refused connection (Validate IP address and Port number)")
+        except socket.timeout:
+            # Unreachable server
+            self.error.emit("Connection attempt timed out (Server is unreachable)")
         except Exception as e:
-            self.error.emit(str(e))
+            # Any other exception
+            self.error.emit(f"Connection failed: {str(e)}")
 
     # ==================================================
     # --- Connection Handling and Data Receiving Func ---
@@ -114,8 +129,9 @@ class NetworkClient(QObject):
             return
 
         if time.time() - self.last_response_time > 6.0:
-            print("Heartbeat timeout! Server neodpovídá.")
-            # Zastavíme timer okamžitě, aby se nespouštěl reconnect duplicitně
+            print("Heartbeat timeout! - No response from server")
+
+            # Stop timer to refused duplicity reconnection attempt
             QMetaObject.invokeMethod(self.heartbeat_timer, "stop", Qt.ConnectionType.QueuedConnection)
             
             self.error.emit("Connection timed out (Lost connection).")
@@ -362,19 +378,20 @@ class NetworkClient(QObject):
         self.reconnect_active = True
         self.socket.close()
         
-        # Spustíme reconnect ve vlákně, aby nezamrzlo GUI
+        # Reconnect attempt on the new thread
         threading.Thread(target=self._reconnectLoop, daemon=True).start()
 
     def _reconnectLoop(self):
         self.reconnect_attempts = 0
         while self.reconnect_attempts < self.max_reconnect_attempts:
             self.reconnect_attempts += 1
-            print(f"🔄 Pokus o reconnect {self.reconnect_attempts}/{self.max_reconnect_attempts}")
+            print(f"Reconnect attempt {self.reconnect_attempts}/{self.max_reconnect_attempts}")
             
             try:
                 # New socket
                 new_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                new_sock.settimeout(5) # Nedovolíme connectu viset věčně
+
+                new_sock.settimeout(5)
                 new_sock.connect((self.current_host, self.current_port))
                 new_sock.settimeout(None)
                 
@@ -391,10 +408,10 @@ class NetworkClient(QObject):
                 self.reconnect_attempts = 0
                 self.last_response_time = time.time()
 
-                # Restartujeme heartbeat timer
+                # Restart heartbeat
                 QMetaObject.invokeMethod(self.heartbeat_timer, "start", Qt.ConnectionType.QueuedConnection)
 
-                print("✅ Reconnect úspěšný!")
+                print("Reconnected!")
                 return
 
             except Exception as e:

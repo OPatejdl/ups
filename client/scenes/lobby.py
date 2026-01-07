@@ -41,6 +41,7 @@ class LobbyScene(QWidget):
 
         self.usernameInfo_label = QLabel(self)
         self.connectionInfo_label = QLabel(self)
+        self.status_label = QLabel("", self)
 
         self._setupLobbyScene()
 
@@ -53,30 +54,29 @@ class LobbyScene(QWidget):
             - creates title and info labels
             - formats FIND GAME and EXIT button
         """
-        # --- Title setup ---
+        # -- Title setup --
         title_label = QLabel("LOBBY", self)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setFont(TITLE_FONT)
 
-         # --- User info setup ---
+         # -- User info setup --
         username_label = QLabel("Username:", self)
         username_label.setFont(LABEL_FONT)
 
         connection_label = QLabel("Connected to:", self)
         connection_label.setFont(LABEL_FONT)
-        
 
-        # --- Information layout setup ---
+        # -- Information layout setup --
         info_layout = QVBoxLayout()
         info_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
 
-        # Username line
+        # -- Username line --
         username_layout = QHBoxLayout()
         username_layout.addWidget(username_label)
         username_layout.addSpacing(10)
         username_layout.addWidget(self.usernameInfo_label)
 
-        # Connection info Line
+        # -- Connection info Line --
         connection_layout = QHBoxLayout()
         connection_layout.addWidget(connection_label)
         connection_layout.addSpacing(10)
@@ -84,6 +84,10 @@ class LobbyScene(QWidget):
 
         info_layout.addLayout(username_layout)
         info_layout.addLayout(connection_layout)
+
+        # -- Status label --
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setFont(LABEL_FONT)
 
         # --- Buttons Set up ---
         self.findGame_btn.setStyleSheet(BLUE_BTN_STYLE)
@@ -106,7 +110,11 @@ class LobbyScene(QWidget):
                                alignment=Qt.AlignmentFlag.AlignHCenter)
         lobby_layout.addSpacing(20)
         lobby_layout.addLayout(info_layout)
-        lobby_layout.addSpacing(30)
+
+        lobby_layout.addSpacing(10)
+        lobby_layout.addWidget(self.status_label)
+
+        lobby_layout.addSpacing(20)
         lobby_layout.addLayout(button_layout)
         lobby_layout.addStretch(2)
 
@@ -137,3 +145,11 @@ class LobbyScene(QWidget):
     def updateInfo(self, username: str, connectionInfo: str):
         self.usernameInfo_label.setText(username)
         self.connectionInfo_label.setText(connectionInfo)
+
+    def setConnectionError(self, msg: str, is_err: bool = True):
+        self.status_label.setText(msg)
+        color = "orange" if is_err else "transparent" # choose color
+        self.status_label.setStyleSheet(f"color: {color}; font-weight: bold;")
+        
+        # Deaktivujeme tlačítka, pokud je síť dole
+        self.findGame_btn.setEnabled(not is_err)

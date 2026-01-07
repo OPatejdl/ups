@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QApplication
 from core.constants import (
     TITLES_SIZE, LETTER_FONT,
     LABEL_SIZE, GAME_TEXT_SIZE,
-    GAME_TEXT_BOLD
+    TXT_BOLD
 )
 
 # Fonts
@@ -68,8 +68,24 @@ TILE_STYLE = """
             QPushButton:hover { background-color: #DDD; }
         """
 
-GREEN_TXT_STYLE = f"color: green; font-weight: {GAME_TEXT_BOLD}; font-size: {GAME_TEXT_SIZE}px;"
-ORANGE_TXT_STYLE = f"color: orange; font-weight: {GAME_TEXT_BOLD}; font-size: {GAME_TEXT_SIZE}px;"
+LOGIN_BTN = """
+            QPushButton {
+                background-color: #00994C;
+            }
+
+            QPushButton:hover {
+                background-color: #00B359;      /* light green on hover */
+            }
+
+            QPushButton:pressed {
+                background-color: #007A3D;      /* darker green on click */
+            }
+        """
+
+
+STATUS_MSG_STYLE = f"color: orange; font-weight: {TXT_BOLD};"
+GREEN_TXT_STYLE = f"color: green; font-weight: {TXT_BOLD}; font-size: {GAME_TEXT_SIZE}px;"
+ORANGE_TXT_STYLE = f"color: orange; font-weight: {TXT_BOLD}; font-size: {GAME_TEXT_SIZE}px;"
 
 def setAppStyling(app: QApplication):
     """Apply the global stylesheet and fonts to the QApplication."""

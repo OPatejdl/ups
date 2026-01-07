@@ -59,6 +59,7 @@ class MainWindow(QMainWindow):
         self.network.stateSync.connect(self.onStateSync)
         self.network.gameEnded.connect(self.onBackToLobby)
         self.network.disconnected.connect(self.onDisconnected)
+        self.network.error.connect(self.onNetworkError)
 
         # In-Game Updates
         self.network.turnUpdate.connect(self.game_scene.updateBoard)
@@ -107,6 +108,20 @@ class MainWindow(QMainWindow):
         Args:
             code - Specifies response on login request
         """
+        # Set up msg
+        if (code < 2):
+            self.login_scene.setErrorMsg("")
+        else:
+            reasons = {
+                2: "Server is full",
+                3: "Nickname already taken.",
+                4: "Nickname is too long.",
+                5: "Nickname is too short."
+            }
+
+            msg = reasons.get(code, f"Login failed (Error {code})")
+            self.login_scene.setErrorMsg(msg)
+
         if (code == 0):
             self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
             self.scene_manager.setCurrentWidget(self.lobby_scene)
@@ -151,7 +166,11 @@ class MainWindow(QMainWindow):
         """
         Called on SYNC response from server
         """
+        # Setup info and clean error msg
         self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
+        self.lobby_scene.setConnectionError("", is_error=False)
+        self.waiting_scene.setConnectionError("")
+    
         # LOBBY reconnect
         if (state == "LOBBY"):
             self.scene_manager.setCurrentWidget(self.lobby_scene)
@@ -189,3 +208,21 @@ class MainWindow(QMainWindow):
         Called as a reaction on disconnected signal
         """
         self.scene_manager.setCurrentWidget(self.login_scene)
+
+    def onNetworkError(self, err_msg: str):
+        """
+        Reaction on network error during app run
+        """
+        current_scene = self.scene_manager.currentWidget()
+        msg = "CONNECTION LOST - Reconnecting..."
+
+        if current_scene == self.login_scene:
+            self.login_scene.setErrorMsg(err_msg)
+        if current_scene == self.game_scene:
+            self.game_scene.setLocalConnectionErr(is_reconnecting=True)
+        elif current_scene == self.lobby_scene:
+            self.lobby_scene.setConnectionError(msg)
+        elif current_scene == self.waiting_scene:
+            self.waiting_scene.setConnectionError(msg)
+        
+        print(f"Network error handled in UI: {err_msg}")

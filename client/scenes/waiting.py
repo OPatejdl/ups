@@ -10,7 +10,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from core.styling import (
-    TITLE_FONT, LABEL_FONT
+    TITLE_FONT, LABEL_FONT,
+    STATUS_MSG_STYLE
 )
 
 
@@ -21,6 +22,7 @@ class WaitingScene(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.status_label = QLabel("", self)
         self._setupUI()
 
     def _setupUI(self):
@@ -29,30 +31,43 @@ class WaitingScene(QWidget):
         """
         layout = QVBoxLayout()
 
-        # Title setup
+        # -- Title --
         title = QLabel("WAITING FOR OPPONENT", self)
         title.setFont(TITLE_FONT)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # title.setStyleSheet("color: white;")
 
-        # Info
+        # -- Info --
         info = QLabel("Please wait until a second player joins...", self)
         info.setFont(LABEL_FONT)
         info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         info.setStyleSheet("color: grey;")
 
-        # Loader
+        # -- Loader --
         spinner = QLabel("... ... ...", self)
         spinner.setFont(TITLE_FONT)
         spinner.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # spinner.setStyleSheet("color: white;")
+
+        # -- Status --
+        self.status_label.setFont(LABEL_FONT)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout.addStretch()
         layout.addWidget(title)
         layout.addSpacing(20)
         layout.addWidget(info)
-        layout.addSpacing(40)
+
+        layout.addSpacing(10)
+        layout.addWidget(self.status_label)
+
+        layout.addSpacing(30)
         layout.addWidget(spinner)
         layout.addStretch()
 
         self.setLayout(layout)
+
+    def setConnectionError(self, msg: str):
+        """
+        Shows connection error msg
+        """
+        self.status_label.setText(msg)
+        self.status_label.setStyleSheet(STATUS_MSG_STYLE)
