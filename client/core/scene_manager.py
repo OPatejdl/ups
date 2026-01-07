@@ -168,7 +168,7 @@ class MainWindow(QMainWindow):
         """
         # Setup info and clean error msg
         self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
-        self.lobby_scene.setConnectionError("", is_error=False)
+        self.lobby_scene.setConnectionError("", is_err=False)
         self.waiting_scene.setConnectionError("")
     
         # LOBBY reconnect

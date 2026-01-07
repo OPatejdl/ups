@@ -333,7 +333,7 @@ namespace MyServer {
             }
             else if (command == "MOVE") {
                 LOG_INFO("User" + user->nickname + " sent MOVE msg.");
-                handle_move(client_fd, user, parts);
+                handle_move(client_fd, parts);
             }
             else if (command == "SYNC") {
                 LOG_INFO("User" + user->nickname + " sent SYNC msg.");
@@ -448,7 +448,7 @@ namespace MyServer {
         return true;
     }
 
-    bool Server::handle_move(int client_fd, std::shared_ptr<User> user, const std::vector<std::string>& parts) {
+    bool Server::handle_move(int client_fd, const std::vector<std::string>& parts) {
         if (parts.size() < 3) {
             return false;
         }
