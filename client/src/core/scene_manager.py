@@ -117,6 +117,7 @@ class MainWindow(QMainWindow):
         """
         # Set up msg
         if code < LOGIN_FULL_SERVER:
+            self.login_scene.login_btn.setEnabled(True)
             self.login_scene.setErrorMsg("")
         else:
             reasons = {
@@ -131,7 +132,7 @@ class MainWindow(QMainWindow):
 
         if code == LOGIN_SUCCESS:
             self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
-            self.scene_manager.setCurrentWidget(self.lobby_scene)
+            self.onBackToLobby()
         elif code == LOGIN_RECONNECT:
             # Reconnect successful
             logger.info("Reconnected! Sending SYNC to sync state...")
@@ -147,7 +148,7 @@ class MainWindow(QMainWindow):
         """
         self.network.sendDisconnect()
         self.network.disconnect()
-        self.scene_manager.setCurrentWidget(self.login_scene)
+        self.onLoginScene()
 
     @pyqtSlot()
     def findGameRequestHandler(self):
@@ -160,6 +161,7 @@ class MainWindow(QMainWindow):
         """
         Called when server puts user in waiting room
         """
+        self.waiting_scene.leave_btn.setEnabled(True)
         self.scene_manager.setCurrentWidget(self.waiting_scene)
 
     def onGameStarted(self, symbol: str, opponent: str, board: str):
@@ -189,11 +191,11 @@ class MainWindow(QMainWindow):
     
         # LOBBY reconnect
         if state == "LOBBY":
-            self.scene_manager.setCurrentWidget(self.lobby_scene)
+            self.onBackToLobby()
         
         # Waiting reconnect
         elif state == "WAITING":
-            self.scene_manager.setCurrentWidget(self.waiting_scene)
+            self.onWaiting()
             self.network.sendFindRequest()
         
         # Playing game reconnect
@@ -216,6 +218,12 @@ class MainWindow(QMainWindow):
             self.scene_manager.setCurrentWidget(self.game_scene)
 
     def onBackToLobby(self):
+        """
+        Called to get back to lobby
+        """
+        logger.info("User gets back to lobby")
+        self.lobby_scene.findGame_btn.setEnabled(True)
+        self.lobby_scene.exit_btn.setEnabled(True)
         self.scene_manager.setCurrentWidget(self.lobby_scene)
 
     def onDisconnected(self, reason: str):
@@ -224,7 +232,7 @@ class MainWindow(QMainWindow):
         Called as a reaction on disconnected signal
         """
         self.login_scene.setErrorMsg(reason)
-        self.scene_manager.setCurrentWidget(self.login_scene)
+        self.onLoginScene()
 
     def onNetworkError(self, err_msg: str):
         """
@@ -253,4 +261,11 @@ class MainWindow(QMainWindow):
         """
         logger.info("User is leaving the waiting queue")
         self.network.sendLeave()
-        self.scene_manager.setCurrentWidget(self.lobby_scene)
+        self.onBackToLobby()
+
+    def onLoginScene(self):
+        """
+        Handles getting back to login scene
+        """
+        self.login_scene.login_btn.setEnabled(True)
+        self.scene_manager.setCurrentWidget(self.login_scene)

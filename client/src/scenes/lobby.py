@@ -130,6 +130,7 @@ class LobbyScene(QWidget):
         Emits:
         exitRequest signal
         """
+        self.exit_btn.setEnabled(False)
         self.exitRequest.emit()
 
     def _findGameBtnClicked(self):
@@ -139,6 +140,7 @@ class LobbyScene(QWidget):
         Emits:
         findGameRequest signal
         """
+        self.findGame_btn.setEnabled(False)
         self.findGameRequest.emit()
 
     def updateInfo(self, username: str, connectionInfo: str):

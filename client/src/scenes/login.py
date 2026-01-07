@@ -147,6 +147,7 @@ class LoginScene(QWidget):
             self.setErrorMsg("Port must be a number between 1024-65535.")
             return
 
+        self.login_btn.setEnabled(False)
         self.loginRequest.emit(nick, host, port)
 
     def setErrorMsg(self, msg: str):

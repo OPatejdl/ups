@@ -72,7 +72,7 @@ class WaitingScene(QWidget):
         self.leave_btn.setStyleSheet(RED_BTN_STYLE)
         self.leave_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.leave_btn.setFixedWidth(LEAVE_BTN_WIDTH)
-        self.leave_btn.clicked.connect(self.leaveRequest.emit)
+        self.leave_btn.clicked.connect(self._onLeaveBtnClicked)
 
         layout.addStretch()
         layout.addWidget(title)
@@ -124,3 +124,10 @@ class WaitingScene(QWidget):
         """
         super().hideEvent(event)
         self.spinner_timer.stop()
+
+    def _onLeaveBtnClicked(self):
+        """
+        Handling leave Btn Click
+        """
+        self.leave_btn.setEnabled(False)
+        self.leaveRequest.emit()
