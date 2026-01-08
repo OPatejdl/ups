@@ -143,6 +143,8 @@ class GameScene(QWidget):
         
         # Initial draw (X starts)
         self.updateBoard(board_str, 'X')
+        self.rematch_btn.setEnabled(True)
+        self.back_btn.setEnabled(True)
 
     def syncPlayingGame(self, my_symbol: str, board_str: str, turn_symbol: str, opponent_nick: str):
         """

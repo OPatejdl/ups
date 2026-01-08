@@ -148,6 +148,7 @@ class NetworkClient(QObject):
             QMetaObject.invokeMethod(self.heartbeat_timer, "stop", Qt.ConnectionType.QueuedConnection)
             
             self.error.emit("Connection timed out (Lost connection).")
+            self.setState(ClientState.LOGIN)
             self._startReconnect() 
             return
 
@@ -356,17 +357,23 @@ class NetworkClient(QObject):
         """
         Set its self to disconnected form
         """
-        logger.warning("Setting client in to disconnected state")
+        if not self.running and self.socket is None:
+            return
+
+        logger.warning("Cleaning up client resources and setting state to LOGIN")
         self.running = False
 
         QMetaObject.invokeMethod(self.heartbeat_timer, "stop", Qt.ConnectionType.QueuedConnection)
 
+        # Close socket
         if self.socket:
             try:
+                self.socket.shutdown(socket.SHUT_RDWR)
                 self.socket.close()
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Socket close info: {e}")
             self.socket = None
+
         self.disconnected.emit()
 
     # ==================================
@@ -513,9 +520,11 @@ class NetworkClient(QObject):
                 self.socket.sendall(msg.encode("utf-8"))
                 self.setState(ClientState.LOGIN)
 
-                logger.warning("Disconnecting from server - my decision")
-            except:
-                pass
+                logger.info("Disconnecting from server - my decision")
+            except Exception as e:
+                logger.debug(f"Send disconnect message failed (already closed?): {e}")
+
+        self.disconnect()
 
     ##########################################################
     # ----- Reconnect Logic -----
@@ -583,5 +592,8 @@ class NetworkClient(QObject):
         Args:
             new_state - new client state
         """
+        if self.client_state == new_state:
+            return
+
         logger.info(f"Setting new state: {new_state}")
         self.client_state = new_state
