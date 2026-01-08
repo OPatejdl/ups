@@ -112,6 +112,9 @@ class GameScene(QWidget):
         self.rematch_btn.setStyleSheet(BLUE_BTN_STYLE)
         self.back_btn.setStyleSheet(RED_BTN_STYLE)
 
+        self.back_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.rematch_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
         button_layout = QHBoxLayout(self.end_game_container)
         button_layout.addStretch(GAME_BTN_SPACING)
         button_layout.addWidget(self.back_btn)

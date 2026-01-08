@@ -198,11 +198,14 @@ class NetworkClient(QObject):
         Message handling function
         """
         if not msg.startswith(self.header):
+            logger.warning(f"Ignored msg with invalid header: {msg[:SHOWN_MSG]}...")
             return
 
         payload = msg[len(self.header):]
         parts = payload.split(SPLITTER)
+
         if len(parts) < MIN_ARGS:
+            logger.error(f"Received invalid message (too few arguments): {msg}")
             return
 
         cmd = parts[CMD_POS]
