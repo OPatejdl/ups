@@ -237,12 +237,23 @@ class GameScene(QWidget):
         self.turn_label.setStyleSheet("color: red;")
         self._setGridEnabled(False)
 
+        # Activate leave button
+        self.end_game_container.show()
+        self.back_btn.show()
+        self.back_btn.setEnabled(True)
+        
+        self.rematch_btn.hide()
+
     def setResumed(self, turn_symbol: str):
         """
         Activates game, when opponent reconnects
         """
         self.board_enabled = True
-        self.status_label.setText(f"You are playing as: {self.my_symbol}")
+        self.status_label.setText(f"You are playing as: {self.my_symbol}")\
+
+        # Hide opponent
+        self.end_game_container.hide()
+        self.back_btn.setEnabled(False)
         
         if turn_symbol:
             self._updateTurnInfo(turn_symbol, True)
