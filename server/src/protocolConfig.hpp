@@ -43,7 +43,11 @@ namespace Protocol {
     inline constexpr int MOVE_Y_POS = 2;                        /** Index of Y coordinate value */
 
     inline const char ST_PLAYER_CHAR = 'X';                     /** Character of first player */
-    inline const char ND_PLAYER_CHAR = 'O';                      /** Character of second player */
+    inline const char ND_PLAYER_CHAR = 'O';                     /** Character of second player */
+
+    // --- WAITING ---
+    inline constexpr int VALID_WAITING = 0;                     /** Code for validation of move to waiting queue */
+    inline constexpr int INVALID_WAITING = 1;                   /** Code for inform user about full rooms */
 }
 
 #endif

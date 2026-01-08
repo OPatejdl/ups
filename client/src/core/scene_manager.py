@@ -159,14 +159,24 @@ class MainWindow(QMainWindow):
         """
         self.network.sendFindRequest()
 
-    def onWaiting(self):
+    def onWaiting(self, code: int):
         """
         Called when server puts user in waiting room
         """
-        self.network.setState(ClientState.WAITING)
 
-        self.waiting_scene.leave_btn.setEnabled(True)
-        self.scene_manager.setCurrentWidget(self.waiting_scene)
+        if code == WAITING_VALID:
+            logger.info("Moving to waiting queue")
+            self.network.setState(ClientState.WAITING)
+
+            self.waiting_scene.leave_btn.setEnabled(True)
+            self.waiting_scene.setConnectionError("")
+            self.scene_manager.setCurrentWidget(self.waiting_scene)
+
+        else:
+            logger.warning("Server rooms are full")
+            self.lobby_scene.setConnectionError("Full rooms! - Try again later")
+            self.onBackToLobby()
+
 
     def onGameStarted(self, symbol: str, opponent: str, board: str):
         """

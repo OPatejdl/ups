@@ -451,7 +451,10 @@ namespace MyServer {
         auto room = RoomManager::join_waiting_room(user);
 
         if (!room) {
-            std::string err = Protocol::PROTOCOL_HEADER + "ROOM_ERROR" + Protocol::PROTOCOL_END;
+            LOG_WARNING("Full rooms - informing user with fd: " + std::to_string(client_fd));
+            std::string err = Protocol::PROTOCOL_HEADER + "WAITING" +
+                            Protocol::SPLITTER + std::to_string(Protocol::INVALID_WAITING) +
+                            Protocol::PROTOCOL_END;
             send_all(client_fd, err);
             return true;
         }
@@ -463,21 +466,24 @@ namespace MyServer {
             // MSG to both players - GAME|<start_symbol>|<opponent nick>|<board>
             std::string msg1 = Protocol::PROTOCOL_HEADER + "GAME" + 
                             Protocol::SPLITTER + "START_X" +
-                            Protocol::SPLITTER + players[1]->nickname +
+                            Protocol::SPLITTER + players[RoomConfig::SECOND_PLAYER]->nickname +
                             Protocol::SPLITTER + room->get_board_string() +
                             Protocol::PROTOCOL_END;
             
-            send_all(players[0]->fd_socket, msg1);
+            send_all(players[RoomConfig::FIRST_PLAYER]->fd_socket, msg1);
 
             std::string msg2 = Protocol::PROTOCOL_HEADER + "GAME" + Protocol::SPLITTER + "START_O" + 
-                                Protocol::SPLITTER + players[0]->nickname + 
-                                Protocol::SPLITTER + room->get_board_string() + Protocol::PROTOCOL_END;
-            send_all(players[1]->fd_socket, msg2);
+                                Protocol::SPLITTER + players[RoomConfig::FIRST_PLAYER]->nickname + 
+                                Protocol::SPLITTER + room->get_board_string() +
+                                Protocol::PROTOCOL_END;
+            send_all(players[RoomConfig::SECOND_PLAYER]->fd_socket, msg2);
             
             LOG_INFO("Match started in Room " + std::to_string(room->id));
         } else {
             // Waiting for another player
-            std::string wait_msg = Protocol::PROTOCOL_HEADER + "WAITING" + Protocol::PROTOCOL_END;
+            std::string wait_msg = Protocol::PROTOCOL_HEADER + "WAITING" +
+                                Protocol::SPLITTER + std::to_string(Protocol::VALID_WAITING) +
+                                Protocol::PROTOCOL_END;
             send_all(client_fd, wait_msg);
         }
 

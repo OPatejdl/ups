@@ -10,6 +10,7 @@
 #include "../protocolConfig.hpp"
 #include "../roomHandling/roomManager.hpp"
 #include "../roomHandling/room.hpp"
+#include "../roomHandling/roomConfig.hpp"
 
 #include <iostream>
 #include <string.h>

@@ -29,7 +29,7 @@ class NetworkClient(QObject):
 
     # Login & Status
     loginResult = pyqtSignal(int) # login_code
-    waiting = pyqtSignal()
+    waiting = pyqtSignal(int)
     stateSync = pyqtSignal(str, dict)
 
     # Game
@@ -230,8 +230,11 @@ class NetworkClient(QObject):
             self.loginResult.emit(res_code)
 
         # Waiting room
-        elif cmd == "WAITING" and self.client_state == ClientState.LOBBY:
-            self.waiting.emit()
+        elif cmd == "WAITING" and self.client_state in [
+            ClientState.LOBBY, ClientState.WAITING]:
+
+            code = int(parts[WAITING_STATUS]) if len(parts) < WAITING_ARGS else WAITING_VALID
+            self.waiting.emit(code)
 
         elif cmd == "GAME":
             if len(parts) < GAME_ARGS:
@@ -357,7 +360,7 @@ class NetworkClient(QObject):
         """
         Set its self to disconnected form
         """
-        if not self.running and self.socket is None:
+        if not self.running:
             return
 
         logger.warning("Cleaning up client resources and setting state to LOGIN")
