@@ -233,7 +233,7 @@ class NetworkClient(QObject):
         elif cmd == "WAITING" and self.client_state in [
             ClientState.LOBBY, ClientState.WAITING]:
 
-            code = int(parts[WAITING_STATUS]) if len(parts) < WAITING_ARGS else WAITING_VALID
+            code = int(parts[WAITING_STATUS]) if len(parts) >= WAITING_ARGS else WAITING_VALID
             self.waiting.emit(code)
 
         elif cmd == "GAME":
