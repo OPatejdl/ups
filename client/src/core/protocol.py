@@ -5,6 +5,8 @@ Contact: opatejdl@students.zcu.cz
 Description: This script defines constants of the protocol
 """
 
+from enum import Enum
+
 PROTOCOL_HEADER = "OP23|"
 SPLITTER = "|" 
 MAX_BUFFER_SIZE = 1024
@@ -75,3 +77,12 @@ SYNC_GAME_OPPONENT = 5
 SYNC_RESULT_OPPONENT = 2
 SYNC_RESULT_BOARD = 3
 SYNC_RESULT_WINNER = 4
+
+# Client States
+class ClientState(Enum):
+    LOGIN = 0
+    LOBBY = 1
+    WAITING = 2
+    IN_GAME = 3
+    RESULT = 4
+    SYNCING = 5

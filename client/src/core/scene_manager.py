@@ -137,6 +137,7 @@ class MainWindow(QMainWindow):
             # Reconnect successful
             logger.info("Reconnected! Sending SYNC to sync state...")
             self.lobby_scene.updateInfo(self.current_nick, f"{self.current_ip}:{self.current_port}")
+            self.network.setState(ClientState.SYNCING)
             self.network.sendSync()
         else:
             logger.error(f"Login failed with code {code}")
@@ -161,6 +162,8 @@ class MainWindow(QMainWindow):
         """
         Called when server puts user in waiting room
         """
+        self.network.setState(ClientState.WAITING)
+
         self.waiting_scene.leave_btn.setEnabled(True)
         self.scene_manager.setCurrentWidget(self.waiting_scene)
 
@@ -189,39 +192,53 @@ class MainWindow(QMainWindow):
         self.lobby_scene.setConnectionError("", is_err=False)
         self.waiting_scene.setConnectionError("")
     
-        # LOBBY reconnect
-        if state == "LOBBY":
-            self.onBackToLobby()
-        
-        # Waiting reconnect
-        elif state == "WAITING":
-            self.onWaiting()
-            self.network.sendFindRequest()
-        
-        # Playing game reconnect
-        elif state == "GAME":
-            self.game_scene.syncPlayingGame(
-                data["symbol"], 
-                data["board"], 
-                data["turn"], 
-                data["opponent"]
-            )
-            self.scene_manager.setCurrentWidget(self.game_scene)
+        if self.network.client_state == ClientState.SYNCING:
+            # LOBBY reconnect
+            if state == "LOBBY":
+                self.onBackToLobby()
+            
+            # Waiting reconnect
+            elif state == "WAITING":
+                self.onWaiting()
+                self.network.sendFindRequest()
+            
+            # Playing game reconnect
+            elif state == "GAME":
+                self.network.setState(ClientState.IN_GAME)
+                self.game_scene.syncPlayingGame(
+                    data["symbol"], 
+                    data["board"], 
+                    data["turn"], 
+                    data["opponent"]
+                )
+                self.scene_manager.setCurrentWidget(self.game_scene)
 
-        # Finished game reconnect
-        elif state == "RESULT":
-            self.game_scene.syncFinishedGame(
-                data["opponent"],
-                data["board"],
-                data["winner"]
-            )
-            self.scene_manager.setCurrentWidget(self.game_scene)
+            # Finished game reconnect
+            elif state == "RESULT":
+                self.network.setState(ClientState.RESULT)
+                self.game_scene.syncFinishedGame(
+                    data["opponent"],
+                    data["board"],
+                    data["winner"]
+                )
+                self.scene_manager.setCurrentWidget(self.game_scene)
+
+        elif (state == "LOBBY" and 
+              self.network.client_state not in [
+                  ClientState.LOGIN,
+                  ClientState.LOBBY]
+             ):
+            self.onBackToLobby()
+
 
     def onBackToLobby(self):
         """
         Called to get back to lobby
         """
         logger.info("User gets back to lobby")
+
+        self.network.setState(ClientState.LOBBY)
+
         self.lobby_scene.findGame_btn.setEnabled(True)
         self.lobby_scene.exit_btn.setEnabled(True)
         self.scene_manager.setCurrentWidget(self.lobby_scene)
@@ -267,5 +284,6 @@ class MainWindow(QMainWindow):
         """
         Handles getting back to login scene
         """
+        self.network.setState(ClientState.LOGIN)
         self.login_scene.login_btn.setEnabled(True)
         self.scene_manager.setCurrentWidget(self.login_scene)

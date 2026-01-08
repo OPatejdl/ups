@@ -57,6 +57,7 @@ class NetworkClient(QObject):
         self.nickname = ""
         self.current_host = ""
         self.current_port = INIT_PORT
+        self.client_state = ClientState.LOGIN 
 
         # Heartbeat setup
         self.last_response_time = INIT_LAST_RESPONSE
@@ -211,7 +212,7 @@ class NetworkClient(QObject):
             self.sendLogin(self.nickname)
 
         # Response for login
-        elif cmd == "LOGIN":
+        elif cmd == "LOGIN" and self.client_state == ClientState.LOGIN:
             if len(parts) < LOGIN_ARGS:
                 return
 
@@ -228,7 +229,7 @@ class NetworkClient(QObject):
             self.loginResult.emit(res_code)
 
         # Waiting room
-        elif cmd == "WAITING":
+        elif cmd == "WAITING" and self.client_state == ClientState.LOBBY:
             self.waiting.emit()
 
         elif cmd == "GAME":
@@ -236,7 +237,12 @@ class NetworkClient(QObject):
                 return
 
             sub_cmd = parts[GAME_CODE]
-            if sub_cmd.startswith("START_"):
+
+            # New Game
+            if sub_cmd.startswith("START_") and (
+                self.client_state == ClientState.LOBBY or
+                 self.client_state == ClientState.WAITING
+            ):
                 # Format: GAME|<start_symbol>|<opponent_nick>|<board>
                 if len(parts) < GAME_START_ARGS:
                     return
@@ -245,14 +251,16 @@ class NetworkClient(QObject):
                 opponent = parts[GAME_START_NICK]
                 board = parts[GAME_START_BOARD]
 
+                self.setState(ClientState.IN_GAME)
+
                 logger.info(f"New game starts - opponent: {opponent}")
                 self.gameStarted.emit(my_symbol, opponent, board)
             
-            elif sub_cmd == "PAUSED":
+            elif sub_cmd == "PAUSED" and self.client_state == ClientState.IN_GAME:
                 logger.info("Game paused - opponent disconnected..")
                 self.gamePaused.emit()
             
-            elif sub_cmd == "RESUMED":
+            elif sub_cmd == "RESUMED" and self.client_state == ClientState.IN_GAME:
                 logger.info("Game resume - opponent reconnected...")
                 turn_sym = parts[GAME_RESUME_TURN] if len(parts) == GAME_RESUME_ARGS else ""
                 self.gameResumed.emit(turn_sym)
@@ -261,11 +269,11 @@ class NetworkClient(QObject):
                 logger.info("Game ended")
                 self.gameEnded.emit()
 
-            elif sub_cmd == "REMATCH_WAIT":
+            elif sub_cmd == "REMATCH_WAIT" and self.client_state == ClientState.RESULT:
                 logger.info("Server confirmed rematch request, waiting for opponent.")
                 self.rematchWait.emit()
 
-        elif cmd == "TURN":
+        elif cmd == "TURN" and self.client_state == ClientState.IN_GAME:
             # Format: TURN|<code>|<board>|<next_turn>
             if len(parts) < TURN_ARGS:
                 return
@@ -291,17 +299,19 @@ class NetworkClient(QObject):
             else:
                 logger.info("Made valid move")
 
-        elif cmd == "RESULT":
+        elif cmd == "RESULT" and self.client_state == ClientState.IN_GAME:
             # Format: RESULT|WIN|<board>|<winner> OR RESULT|DRAW|<board>
             if len(parts) < RESULT_MIN_ARGS:
                 return
-            
+
             res_code = "WIN" if parts[RESULT_RESULT] == RESULT_WINNER_CODE else "DRAW"
             board = parts[RESULT_BOARD]
             winner = parts[RESULT_WINNER] if len(parts) > RESULT_MIN_ARGS else ""
 
             logger.info(f"Game finished - game status is {res_code}")
-            
+
+            self.setState(ClientState.RESULT)
+
             # Update board one last time
             self.turnUpdate.emit(board, "-") 
             self.gameResult.emit(res_code, winner)
@@ -364,6 +374,11 @@ class NetworkClient(QObject):
         Sends sync msg to server to find out the current state of user
         """
         if self.running and self.socket:
+
+            if self.client_state != ClientState.SYNCING:
+                logger.warning(f"Blocking sendSync: Invalid state: {self.client_state}")
+                return
+
             try:
                 msg = f"{self.header}SYNC\n"
                 self.socket.sendall(msg.encode("utf-8"))
@@ -381,6 +396,11 @@ class NetworkClient(QObject):
             y: Coordinate of Y on the game board
         """
         if self.running and self.socket:
+
+            if self.client_state != ClientState.IN_GAME:
+                logger.warning(f"Blocking sendMove: Invalid state: {self.client_state}")
+                return
+
             try:
                 msg = f"{self.header}MOVE|{x}|{y}\n"
                 self.socket.sendall(msg.encode("utf-8"))
@@ -393,7 +413,13 @@ class NetworkClient(QObject):
         """
         Send find request to server
         """
-        if self.running:
+        if self.running and self.socket:
+
+            if (self.client_state != ClientState.WAITING and
+             self.client_state != ClientState.LOBBY):
+                logger.warning(f"Blocking sendFindRequest: Invalid state: {self.client_state}")
+                return
+
             try:
                 self.socket.sendall(f"{self.header}FIND\n".encode("utf-8"))
 
@@ -416,6 +442,11 @@ class NetworkClient(QObject):
 
     def sendLogin(self, nickname: str):
         if self.running and self.socket:
+
+            if self.client_state != ClientState.LOGIN:
+                logger.warning(f"Blocking sendLogin: Invalid state: {self.client_state}")
+                return
+
             try:
                 login_msg = f"{self.header}LOGIN{SPLITTER}{nickname}\n"
                 self.socket.sendall(login_msg.encode("utf-8"))
@@ -430,6 +461,11 @@ class NetworkClient(QObject):
         """
         # Format REMATCH\n
         if self.running and self.socket:
+
+            if self.client_state != ClientState.RESULT:
+                logger.warning(f"Blocking sendRematch: Invalid state: {self.client_state}")
+                return
+
             try:
                 msg = f"{self.header}REMATCH{PROTOCOL_ENDING}"
                 self.socket.sendall(msg.encode("utf-8"))
@@ -443,6 +479,14 @@ class NetworkClient(QObject):
         Sends request to get back to lobby
         """
         if self.running and self.socket:
+
+            if self.client_state not in [
+             ClientState.WAITING,
+             ClientState.IN_GAME,
+             ClientState.RESULT]:
+                logger.warning(f"Blocking sendLeave: Invalid state: {self.client_state}")
+                return
+
             try:
                 msg = f"{self.header}LEAVE{PROTOCOL_ENDING}"
                 self.socket.sendall(msg.encode("utf-8"))
@@ -456,9 +500,15 @@ class NetworkClient(QObject):
         Disconnects client from server and leads to login scene
         """
         if self.running and self.socket:
+
+            if self.client_state != ClientState.LOBBY:
+                logger.warning(f"Blocking sendDisconnect: Invalid state: {self.client_state}")
+                return
+
             try:
                 msg = f"{self.header}DISCONNECT{PROTOCOL_ENDING}"
                 self.socket.sendall(msg.encode("utf-8"))
+                self.setState(ClientState.LOGIN)
 
                 logger.warning("Disconnecting from server - my decision")
             except:
@@ -519,3 +569,16 @@ class NetworkClient(QObject):
         logger.error("Unable to reconnect to server...")
         self.reconnect_active = False
         self.disconnect()
+
+    ################################################
+    # Setting state function
+
+    def setState(self, new_state: ClientState):
+        """
+        Setting up client state
+
+        Args:
+            new_state - new client state
+        """
+        logger.info(f"Setting new state: {new_state}")
+        self.client_state = new_state
