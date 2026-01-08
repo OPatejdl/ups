@@ -159,7 +159,7 @@ class MainWindow(QMainWindow):
         """
         self.network.sendFindRequest()
 
-    def onWaiting(self, code: int):
+    def onWaiting(self, code: int = WAITING_VALID):
         """
         Called when server puts user in waiting room
         """

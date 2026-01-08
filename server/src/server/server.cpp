@@ -363,7 +363,8 @@ namespace MyServer {
 
             // Commands based on the state
             if (command == "FIND") {
-                if (user->state == USER_STATE::CONNECTED) {
+                if (user->state == USER_STATE::CONNECTED ||
+                    user->state == USER_STATE::WAITING) {
                     return handle_find(client_fd, user);
                 }
                 LOG_WARNING("User " + user->nickname + " sent FIND but is not in Lobby.");
