@@ -135,9 +135,11 @@ class GameScene(QWidget):
         """
         self.my_symbol = my_symbol
         self.opponent_nick = opponent_nick
+
         self.status_label.setText(f"You are playing as: {my_symbol}")
         self.opponent_label.setText(f"Opponent: {opponent_nick}")
         self.rematch_btn.setText("Rematch")
+
         self.end_game_container.hide()
         self.board_enabled = True
         
@@ -270,6 +272,14 @@ class GameScene(QWidget):
         """
         self.board_enabled = False
         self._setGridEnabled(False)
+
+        # Buttons reset
+        self.rematch_btn.show()
+        self.rematch_btn.setEnabled(True)
+        self.rematch_btn.setText("Rematch")
+    
+        self.back_btn.show()
+        self.back_btn.setEnabled(True)
         self.end_game_container.show()
 
         if game_result == "WIN":
