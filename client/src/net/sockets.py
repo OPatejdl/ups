@@ -240,8 +240,11 @@ class NetworkClient(QObject):
 
             # New Game
             if sub_cmd.startswith("START_") and (
-                self.client_state == ClientState.LOBBY or
-                 self.client_state == ClientState.WAITING
+                self.client_state in [
+                    ClientState.LOBBY, 
+                    ClientState.WAITING,
+                    ClientState.RESULT
+                ]
             ):
                 # Format: GAME|<start_symbol>|<opponent_nick>|<board>
                 if len(parts) < GAME_START_ARGS:

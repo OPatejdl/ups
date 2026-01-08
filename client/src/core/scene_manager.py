@@ -127,6 +127,7 @@ class MainWindow(QMainWindow):
                 LOGIN_MIN_NICK_LEN: "Nickname is too short."
             }
 
+            self.login_scene.login_btn.setEnabled(True)
             msg = reasons.get(code, f"Login failed (Error {code})")
             self.login_scene.setErrorMsg(msg)
 
