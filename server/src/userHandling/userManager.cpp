@@ -57,6 +57,7 @@ std::vector<std::shared_ptr<User>> UserManager::cleanup_users(std::chrono::secon
 
 void UserManager::disconnect_user(int fd) {
     std::shared_ptr<User> user = get_user_by_fd(fd);
+
     if (user) {
         user->fd_socket = Protocol::DISCONNECTED_USER_SOCKET;
         user->last_active = std::chrono::steady_clock::now();

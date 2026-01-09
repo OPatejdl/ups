@@ -122,11 +122,12 @@ namespace MyServer {
     /////////////////////////////////////////////
     // Private Functions
 
-    // ====================================================
-    // --------- Function Needed for Server Init --------
+    // =================================
+    // --------- Init functions --------
 
     void Server::create_server_socket() {
         server_socket = socket(AF_INET, SOCK_STREAM, 0);
+
         if (server_socket < 0) {
             LOG_ERROR("Unable to create server socket");
             throw MyExceptions::ServerException(Utility::ERROR_UNCREATED_SERVER_SOC);
@@ -142,6 +143,7 @@ namespace MyServer {
         my_addr.sin_addr.s_addr = INADDR_ANY;
 
         return_value = bind(server_socket, (struct sockaddr *) &my_addr, sizeof(my_addr));
+
         if (return_value != 0) {
             LOG_ERROR("Binding of server socket failed");
             throw  MyExceptions::ServerException(Utility::ERROR_BINDING);
@@ -152,6 +154,7 @@ namespace MyServer {
 
     void Server::server_listen() {
         return_value = listen(server_socket, Config::BACKLOG_SIZE);
+
         if (return_value != 0) {
             LOG_ERROR("Listen - FAILED");
             throw MyExceptions::ServerException(Utility::ERROR_LISTEN);
@@ -160,8 +163,8 @@ namespace MyServer {
         }
     }
 
-    // ====================================================
-    // ----------- Function needed for server run --------
+    // ==============================================
+    // --------- Runtime handling functions --------
 
     void Server::new_client_connection() {
         FD_SET(client_socket, &current_sockets);
@@ -281,27 +284,6 @@ namespace MyServer {
         UserManager::remove_user(client_fd);
         unauth_sockets.erase(client_fd);
     };
-
-    void Server::cleanup_unauth_sockets() {
-        auto now = std::chrono::steady_clock::now();
-        auto timeout = std::chrono::seconds(Config::AUTH_TIMEOUT);
-
-        for (auto it = unauth_sockets.begin(); it != unauth_sockets.end(); ) {
-            // Check timeout
-            if (now - it->second.joined_time > timeout) {
-                int fd_to_close = it->first;
-                LOG_WARNING("Anonymous connection timeout on fd: " + std::to_string(fd_to_close));
-                
-                // Remove socket 
-                close(fd_to_close);
-                FD_CLR(fd_to_close, &current_sockets);
-            
-                it = unauth_sockets.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
 
     bool Server::process_msg(int client_fd, std::string msg) {
         // Validate protocol
@@ -741,5 +723,29 @@ namespace MyServer {
             }
         }
         return true;
+    }
+
+    // ==============================
+    // --- Maintenance functions ---
+
+        void Server::cleanup_unauth_sockets() {
+        auto now = std::chrono::steady_clock::now();
+        auto timeout = std::chrono::seconds(Config::AUTH_TIMEOUT);
+
+        for (auto it = unauth_sockets.begin(); it != unauth_sockets.end(); ) {
+            // Check timeout
+            if (now - it->second.joined_time > timeout) {
+                int fd_to_close = it->first;
+                LOG_WARNING("Anonymous connection timeout on fd: " + std::to_string(fd_to_close));
+                
+                // Remove socket 
+                close(fd_to_close);
+                FD_CLR(fd_to_close, &current_sockets);
+            
+                it = unauth_sockets.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 }

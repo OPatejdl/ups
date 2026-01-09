@@ -9,9 +9,6 @@
 namespace MyLogger {
 
     // ---- Private ----
-    /**
-    * Function opens logging file and cleans it, if exists
-    */
     Logger::Logger() {
 
         std::filesystem::create_directories(Config::LOGS_FOLDER);
@@ -33,10 +30,6 @@ namespace MyLogger {
     }
 
 
-    /**
-    * Function gets current timestamp in the string format
-    * @return String representation of current time
-    */
     std::string Logger::get_timestamp() {
         time_t timeNow;
         std::ostringstream oss;
@@ -48,10 +41,6 @@ namespace MyLogger {
         return oss.str();
     }
 
-    /**
-    * Function gets string format of type
-    * @return string representation of log's type
-    */
     std::string Logger::get_log_type(TYPE type) {
         switch (type) {
             case TYPE::INFO:
@@ -67,10 +56,6 @@ namespace MyLogger {
 
     // ---- Public ----
 
-    /**
-    * Function creates get instance of logger
-    * @return pointer to logger instance
-    */
     Logger &Logger::get_instance() {
         static Logger instance;
         return instance;

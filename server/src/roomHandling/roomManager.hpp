@@ -10,31 +10,36 @@
 #include "../config.hpp"
 #include "roomConfig.hpp"
 
+/**
+ * Static class responsible for the lifecycle of all game rooms.
+ * Handles room creation, player assignment, and rooms cleanup.
+ */
 class RoomManager {
 public:
     static std::vector<std::shared_ptr<Room>> rooms;   /** List of all rooms */     
 
     /**
-     * Tries to add a user to a room or creates a new one,
-     * if all rooms are full and is still space for new room
-     * @return pointer to the room, or nullptr
+     * Attempts to place a user into an available waiting room
+     * * @param user Shared pointer to the user who wants to join a game
+     * @return Shared pointer to the joined/created room, or nullptr if all rooms are occupied
      */
     static std::shared_ptr<Room> join_waiting_room(std::shared_ptr<User> user);
 
     /**
-     * Finds room, where is the user with certain fd
-     * @return pointer to the room, or nullptr
+     * Searches for a room containing a specific player
+     * * @param fd File descriptor (socket) of the player to search for
+     * @return Shared pointer to the room where the user is located, or nullptr if not found
      */
     static std::shared_ptr<Room> get_room_by_user_fd(int fd);
 
     /**
-     * Cleans up empty rooms
+     * Performs a cleanup of the room list by removing all rooms that have no players
      */
     static void cleanup_empty_rooms();
 
     /**
-     * Removes room based on its Id
-     * @param room_id Id of the room
+     * Removes a room based on its Id
+     * @param room_id Id of the room to be removed
      */
     static void remove_room(int room_id);
 
