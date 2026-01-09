@@ -5,46 +5,61 @@
 #include <fstream>
 
 namespace MyLogger {
-    /* 
-    -----------------
-    -- Log's types --
-    -----------------
-    */
+
+    // Log levels
     enum class TYPE {
-        INFO,
-        ERROR,
-        WARNING
+        INFO,               /** Information msg */
+        ERROR,              /** Critical error msg */
+        WARNING             /** Unexpected behavior or invalid moves by user */
     };
 
-    /* 
-    ----------------
-    -- Logger Def --
-    ----------------
-    */
+
+    /**
+     * Singleton Logger class 
+     */
     class Logger {
         private:
-            std::ofstream log_file_;                /* Logging file */
+            std::ofstream log_file_;                /** Logging file */
 
-            Logger();                               /* Constructor of logger */
-            ~Logger();                              /* Destructor of logger */
+            Logger();                               /** Constructor of logger */
+            ~Logger();                              /** Destructor of logger */
 
-            // Singleton -> no copy or pointer
+            // Disable copy constructor and assignment to prevent duplicates
             Logger(const Logger&) = delete;
             Logger& operator = (const Logger&) = delete;
 
-            std::string get_timestamp();            /* Function formats timestamp*/
-            std::string get_log_type(TYPE type);    /* Function gets string format of type */
+            /**
+             * Generates a formatted date-time string for log entries
+             * @return String in format DD-MM-YYYY_h:min:s
+             */
+            std::string get_timestamp();
+
+            /**
+             * Converts the TYPE enum to its string representation
+             * @param type The log msg level
+             * @return level of msg in string format
+             */
+            std::string get_log_type(TYPE type);
 
         public:
-            static Logger &get_instance();                  /* Function gets logger's instance */
-            void log(TYPE type, const std::string &msg);    /* Function creates new message in logger */
+
+            /**
+             * Accesses the global Logger instance
+             * @return Reference to the Logger singleton
+             */
+            static Logger &get_instance();
+
+            /**
+             * Records a message to the console and the log file
+             * @param type The severity level of the message
+             * @param msg The actual log message content
+             */
+            void log(TYPE type, const std::string &msg);
     };
 }
-/* 
--------------------------
--- Logging Func Macros --
--------------------------
-*/
+
+// =======================
+// Logging Func Macros 
 
 #define LOG_INFO(msg) MyLogger::Logger::get_instance().log(MyLogger::TYPE::INFO, msg)
 #define LOG_ERROR(msg) MyLogger::Logger::get_instance().log(MyLogger::TYPE::ERROR, msg)

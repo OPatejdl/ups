@@ -57,6 +57,7 @@ std::vector<std::shared_ptr<User>> UserManager::cleanup_users(std::chrono::secon
 
 void UserManager::disconnect_user(int fd) {
     std::shared_ptr<User> user = get_user_by_fd(fd);
+
     if (user) {
         user->fd_socket = Protocol::DISCONNECTED_USER_SOCKET;
         user->last_active = std::chrono::steady_clock::now();
@@ -108,4 +109,22 @@ int UserManager::handle_login(int client_fd, const std::string& nick) {
 
     LOG_INFO("New user added: \n\tNickname: " + nick + "\n\tFD: " + std::to_string(client_fd));
     return Protocol::LOGIN_LOGGED;
+}
+
+std::vector<int> UserManager::get_timeouted_users(std::chrono::seconds timeout) {
+    std::vector<int> timeouted_fds;
+    auto now = std::chrono::steady_clock::now();
+
+    for (const auto& user : user_list) {
+
+        // Check all users, who appear connected
+        if (user->fd_socket != Protocol::DISCONNECTED_USER_SOCKET) {
+            auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - user->last_active);
+            
+            if (duration > timeout) {
+                timeouted_fds.push_back(user->fd_socket);
+            }
+        }
+    }
+    return timeouted_fds;
 }

@@ -1,8 +1,11 @@
 #include "room.hpp"
 
-Room::Room(int room_id) : id(room_id), state(ROOM_STATE::WAITING_FOR_PLAYER), turn_index(0) {
+Room::Room(int room_id) : 
+    id(room_id), 
+    state(ROOM_STATE::WAITING_FOR_PLAYER), 
+    turn_index(RoomConfig::FIRST_PLAYER) {
     // Initialize 3x3 board with empty spaces
-    board.resize(RoomConfig::BOARD_SIZE, ' '); 
+    board.resize(RoomConfig::BOARD_SIZE, RoomConfig::EMPTY_TILE); 
 }
 
 // --- Player Management ---
@@ -28,7 +31,9 @@ bool Room::add_player(std::shared_ptr<User> user) {
         swap_players();
         turn_index = RoomConfig::FIRST_PLAYER;
         
-        LOG_INFO("Room " + std::to_string(id) + " -> Game started between " + players[RoomConfig::FIRST_PLAYER]->nickname + " and " + players[RoomConfig::SECOND_PLAYER]->nickname);
+        LOG_INFO("Room " + std::to_string(id) + " -> Game started between " + 
+            players[RoomConfig::FIRST_PLAYER]->nickname + " and " + 
+            players[RoomConfig::SECOND_PLAYER]->nickname);
     }
     return true;
 }
@@ -61,25 +66,27 @@ std::string Room::process_move(int fd, int x, int y) {
     if (players[RoomConfig::FIRST_PLAYER]->fd_socket == fd) player_idx = RoomConfig::FIRST_PLAYER;
     else if (players[RoomConfig::SECOND_PLAYER]->fd_socket == fd) player_idx = RoomConfig::SECOND_PLAYER;
     else {
-        LOG_WARNING("Room: " + std::to_string(id) + " -> User with fd: " + std::to_string(fd) + " tried to make a move in different room");
+        LOG_WARNING("Room: " + std::to_string(id) + " -> User with fd: " + 
+            std::to_string(fd) + " tried to make a move in different room");
         return response("TURN", Protocol::PLAYER_NOT_BELONG);
     }
 
     // Check if it is this player's turn
     if (player_idx != turn_index) {
-        LOG_WARNING("Room: " + std::to_string(id) + "-> player tried to make move even though it is not his turn");
+        LOG_WARNING("Room: " + std::to_string(id) + 
+            " -> player tried to make move even though it is not his turn");
         return response("TURN", Protocol::NOT_YOUR_TURN);
     }
 
     // Check coordinates boundaries and availability
     int board_idx = y * RoomConfig::Y_CONVERTOR + x; 
     
-    if (board_idx < RoomConfig::BOARD_START || board_idx > (RoomConfig::BOARD_SIZE - 1)) {
+    if (board_idx < RoomConfig::BOARD_START || board_idx > (RoomConfig::BOARD_SIZE - RoomConfig::BOARD_OFFSET)) {
         LOG_INFO("Room: " + std::to_string(id) + "-> player tried to make invalid move");
         return response("TURN", Protocol::INVALID_MOVE);
     }
 
-    if (board[board_idx] != ' ') {
+    if (board[board_idx] != RoomConfig::EMPTY_TILE) {
         LOG_INFO("Room: " + std::to_string(id) + "-> player tried to make move to the occupied field");
         return response("TURN", Protocol::OCCUPIED_FIELD);
     }
@@ -98,7 +105,6 @@ std::string Room::process_move(int fd, int x, int y) {
 
         LOG_INFO("Room: " + std::to_string(id) + "-> game finished - WINNER is " + this->winner_nickname +"!");
         return response("RESULT", Protocol::WIN) +
-                Protocol::SPLITTER + get_board_string() +
                 Protocol::SPLITTER + this->winner_nickname;
 
     } else if (check_draw()) {
@@ -109,15 +115,15 @@ std::string Room::process_move(int fd, int x, int y) {
         for (auto& p : players) p->state = USER_STATE::RESULT;
 
         LOG_INFO("Room: " + std::to_string(id) + "-> game finished - DRAW!");
-        return response("RESULT", Protocol::DRAW) + Protocol::SPLITTER + get_board_string();
+        return response("RESULT", Protocol::DRAW);
     }
 
     // Switch turn to the other player
-    turn_index = (turn_index + 1) % 2;
+    turn_index = (turn_index + RoomConfig::NEXT_TURN) % RoomConfig::PLAYERS_AMOUNT;
     
     // Return success response with updated board
     LOG_INFO("Room: " + std::to_string(id) + "-> player made valid move");
-    return response("TURN", Protocol::VALID_MOVE) + Protocol::SPLITTER + get_board_string();
+    return response("TURN", Protocol::VALID_MOVE);
 }
 
 std::string Room::get_board_string() {
@@ -126,7 +132,7 @@ std::string Room::get_board_string() {
 
 void Room::reset_game() {
     // Clear field
-    std::fill(board.begin(), board.end(), ' ');
+    std::fill(board.begin(), board.end(), RoomConfig::EMPTY_TILE);
     winner_nickname = "";
     clear_votes();
 
@@ -136,7 +142,7 @@ void Room::reset_game() {
 }
 
 char Room::get_current_turn_symbol() {
-    return (turn_index == RoomConfig::FIRST_PLAYER) ? 'X' : 'O';
+    return (turn_index == RoomConfig::FIRST_PLAYER) ? Protocol::ST_PLAYER_CHAR : Protocol::ND_PLAYER_CHAR;
 }
 
 std::shared_ptr<User> Room::handle_player_disconnect(int fd) {
@@ -182,7 +188,7 @@ void Room::vote_rematch(int fd) {
 }
 
 bool Room::check_rematch_ready() {
-    return rematch_votes.size() == players.size() && players.size() == 2;
+    return rematch_votes.size() == players.size() && players.size() == RoomConfig::PLAYERS_AMOUNT;
 }
 
 void Room::clear_votes() {
@@ -192,33 +198,46 @@ void Room::clear_votes() {
 // --- Private Helpers ---
 
 bool Room::check_win(char s) {
-    for (int i = 0; i < 3; i++) {
+    int till = RoomConfig::TILES_IN_LINE;
+
+    for (int i = 0; i < till; i++) {
         // Row check
-        if (board[i * 3] == s && board[(i * 3) + 1] == s && board[(i * 3) + 2] == s) {
+        if (board[i * till] == s && 
+            board[(i * till) + RoomConfig::ROW_ND_OFFSET] == s && 
+            board[(i * till) + RoomConfig::ROW_TH_OFFSET] == s) {
             return true;
         }
         // Column check
-        if (board[i] == s && board[i + 3] == s && board[i + 6] == s) {
+        if (board[i] == s && 
+            board[i + RoomConfig::COLUMN_ND_OFFSET] == s && 
+            board[i + RoomConfig::COLUMN_TH_OFFSET] == s) {
             return true;
         }
     }
 
     // Diagonals check
-    if (board[0] == s && board[4] == s && board[8] == s) return true;
-    if (board[2] == s && board[4] == s && board[6] == s) return true;
+    if (board[RoomConfig::ST_DIAGONAL_ST] == s && 
+        board[RoomConfig::ST_DIAGONAL_ND] == s && 
+        board[RoomConfig::ST_DIAGONAL_TH] == s) return true;
+    
+    if (board[RoomConfig::ND_DIAGONAL_ST] == s && 
+        board[RoomConfig::ND_DIAGONAL_ND] == s && 
+        board[RoomConfig::ND_DIAGONAL_TH] == s) return true;
 
     return false;
 }
 
 bool Room::check_draw() {
     for (char c : board) {
-        if (c == ' ') return false; 
+        if (c == RoomConfig::EMPTY_TILE) return false; 
     }
     return true;
 }
 
 std::string Room::response(std::string tag, int code) {
-    return tag + Protocol::SPLITTER + std::to_string(code);
+    return tag +
+            Protocol::SPLITTER + std::to_string(code) +
+            Protocol::SPLITTER + get_board_string();
 }
 
 void Room::swap_players() {

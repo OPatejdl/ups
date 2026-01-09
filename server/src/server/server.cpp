@@ -44,10 +44,18 @@ namespace MyServer {
                 }
                 LOG_ERROR("Select failed");
                 break;
-            } 
+            }
+
+            // Check users activity
+            auto dead_sockets = UserManager::get_timeouted_users(std::chrono::seconds(Config::INACTIVE_ALLOWED_TIME_SEC));
+            
+            for (int dead_fd : dead_sockets) {
+                LOG_WARNING("User timeout detected (no activity) on fd: " + std::to_string(dead_fd));
+                handle_disconnection(dead_fd);
+            }
             
             // Cleanup process
-            auto expired_users = UserManager::cleanup_users(std::chrono::seconds(Config::ALLOWED_TIME_SEC));
+            auto expired_users = UserManager::cleanup_users(std::chrono::seconds(Config::DISCONNECT_ALLOWED_TIME_SEC));
 
             if (!expired_users.empty()) {
                 for (auto& user : expired_users) {
@@ -114,11 +122,12 @@ namespace MyServer {
     /////////////////////////////////////////////
     // Private Functions
 
-    // ====================================================
-    // --------- Function Needed for Server Init --------
+    // =================================
+    // --------- Init functions --------
 
     void Server::create_server_socket() {
         server_socket = socket(AF_INET, SOCK_STREAM, 0);
+
         if (server_socket < 0) {
             LOG_ERROR("Unable to create server socket");
             throw MyExceptions::ServerException(Utility::ERROR_UNCREATED_SERVER_SOC);
@@ -134,6 +143,7 @@ namespace MyServer {
         my_addr.sin_addr.s_addr = INADDR_ANY;
 
         return_value = bind(server_socket, (struct sockaddr *) &my_addr, sizeof(my_addr));
+
         if (return_value != 0) {
             LOG_ERROR("Binding of server socket failed");
             throw  MyExceptions::ServerException(Utility::ERROR_BINDING);
@@ -144,6 +154,7 @@ namespace MyServer {
 
     void Server::server_listen() {
         return_value = listen(server_socket, Config::BACKLOG_SIZE);
+
         if (return_value != 0) {
             LOG_ERROR("Listen - FAILED");
             throw MyExceptions::ServerException(Utility::ERROR_LISTEN);
@@ -152,8 +163,8 @@ namespace MyServer {
         }
     }
 
-    // ====================================================
-    // ----------- Function needed for server run --------
+    // ==============================================
+    // --------- Runtime handling functions --------
 
     void Server::new_client_connection() {
         FD_SET(client_socket, &current_sockets);
@@ -163,7 +174,6 @@ namespace MyServer {
         LOG_INFO("New client socket connected on fd: " + std::to_string(client_socket));
 
         msg = Protocol::PROTOCOL_HEADER + "AUTH|1\n";
-        // ZMĚNA: send -> send_all
         send_all(client_socket, msg);
     }
 
@@ -260,8 +270,12 @@ namespace MyServer {
     }
 
     void Server::remove_client(int client_fd) {
+        LOG_INFO("Removing client: " + std::to_string(client_fd));
+
         // Inform client
-        std::string err_msg = "Error: Invalid protocol" + Protocol::PROTOCOL_END;
+        std::string err_msg = Protocol::PROTOCOL_HEADER + "Error" + 
+                            Protocol::SPLITTER + "Invalid protocol" +
+                            Protocol::PROTOCOL_END;
         send_all(client_fd, err_msg);
 
         // Remove client
@@ -271,27 +285,6 @@ namespace MyServer {
         unauth_sockets.erase(client_fd);
     };
 
-    void Server::cleanup_unauth_sockets() {
-        auto now = std::chrono::steady_clock::now();
-        auto timeout = std::chrono::seconds(Config::AUTH_TIMEOUT);
-
-        for (auto it = unauth_sockets.begin(); it != unauth_sockets.end(); ) {
-            // Check timeout
-            if (now - it->second.joined_time > timeout) {
-                int fd_to_close = it->first;
-                LOG_WARNING("Anonymous connection timeout on fd: " + std::to_string(fd_to_close));
-                
-                // Remove socket 
-                close(fd_to_close);
-                FD_CLR(fd_to_close, &current_sockets);
-            
-                it = unauth_sockets.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
-
     bool Server::process_msg(int client_fd, std::string msg) {
         // Validate protocol
         std::string header = Protocol::PROTOCOL_HEADER;
@@ -299,7 +292,17 @@ namespace MyServer {
         if (msg.size() < header.size() || msg.substr(0, header.size()) != header) {
             // Remove user in case of invalid protocol
             LOG_WARNING("Invalid protocol header from fd: " + std::to_string(client_fd));
-            remove_client(client_fd);
+
+            auto user = UserManager::get_user_by_fd(client_fd);
+            if (user) {
+                // Handle for connected user
+                LOG_WARNING("Authorized client with fd: " + std::to_string(client_fd) + "used invalid header! - Disconnecting...");
+                handle_disconnection(client_fd);
+            } else {
+                //Handle for anonym client
+                LOG_WARNING("Unauthorized client with fd: " + std::to_string(client_fd) + "used invalid header! - Removing...");
+                remove_client(client_fd);
+            }
             return false;
         }
 
@@ -313,41 +316,63 @@ namespace MyServer {
         std::string command = parts[Protocol::COMMAND_POS];
 
         if (user == nullptr) {
-            // Unknown user - only LOGIN|<param>
+            // Unknown user - only LOGIN|<param> or PONG|UNAUTH
             if (command == "LOGIN") {
                 return handle_login(client_fd, parts);
+            }
+            else if (command == "PING") {
+                std::string pong = Protocol::PROTOCOL_HEADER + "PONG" +
+                                Protocol::SPLITTER + "UNAUTH" + Protocol::PROTOCOL_END;
+                send_all(client_fd, pong);
+                return true;
             }
         } else {
             // Set activity
             user->last_active = std::chrono::steady_clock::now();
 
+            // Universal commands
+            if (command == "PING") {
+                return handle_ping(client_fd, user);
+            }
+            if (command == "SYNC") {
+                return handle_sync(client_fd, user);
+            }
+            if (command == "DISCONNECT") {
+                LOG_INFO("User " + user->nickname + " requested disconnect.");
+                handle_disconnection(client_fd);
+                return false;
+            }
+
+            // Commands based on the state
             if (command == "FIND") {
-                handle_find(client_fd, user);
+                if (user->state == USER_STATE::CONNECTED ||
+                    user->state == USER_STATE::WAITING) {
+                    return handle_find(client_fd, user);
+                }
+                LOG_WARNING("User " + user->nickname + " sent FIND but is not in Lobby.");
             }
             else if (command == "MOVE") {
-                LOG_INFO("User" + user->nickname + " sent MOVE msg.");
-                handle_move(client_fd, user, parts);
-            }
-            else if (command == "SYNC") {
-                LOG_INFO("User" + user->nickname + " sent SYNC msg.");
-                handle_sync(client_fd, user);
-            }
-            else if (command == "PING") {
-                LOG_INFO("User" + user->nickname + " sent PING msg.");
-                handle_ping(client_fd, user);
+                if (user->state == USER_STATE::IN_GAME) {
+                    return handle_move(client_fd, user, parts);
+                }
+                LOG_WARNING("User " + user->nickname + " sent MOVE but is not in a match.");
             }
             else if (command == "REMATCH") {
-                LOG_INFO("User" + user->nickname + " sent REMATCH msg.");
-                handle_rematch(client_fd, user);
-            } 
-            else if (command == "LEAVE") {
-                LOG_INFO("User" + user->nickname + " sent LEAVE msg.");
-                handle_leave(client_fd, user);
+                if (user->state == USER_STATE::RESULT) {
+                    return handle_rematch(client_fd, user);
+                }
+                LOG_WARNING("User " + user->nickname + " sent REMATCH in invalid state.");
             }
-            else if (command == "DISCONNECT") {
-                LOG_INFO("User" + user->nickname + " sent DISCONNECT msg.");
+            else if (command == "LEAVE") {
+                if (user->state != USER_STATE::CONNECTED) {
+                    return handle_leave(client_fd, user);
+                }
+            }
+            else {
+                // Unknown command
+                LOG_ERROR("Unknown command '" + command + "' from user " + user->nickname);
                 handle_disconnection(client_fd);
-                return true;
+                return false;
             }
         } 
 
@@ -379,6 +404,7 @@ namespace MyServer {
     bool Server::handle_login(int client_fd, const std::vector<std::string>& parts) {
         // Validation of parameters
         if (parts.size() <= Protocol::NICK_PARAM_POS) {
+            LOG_WARNING("Invalid amount of parameters for LOGIN by client with fd: " + std::to_string(client_fd));
             remove_client(client_fd);
             return false;
         }
@@ -408,7 +434,10 @@ namespace MyServer {
         auto room = RoomManager::join_waiting_room(user);
 
         if (!room) {
-            std::string err = Protocol::PROTOCOL_HEADER + "ROOM_ERROR" + Protocol::PROTOCOL_END;
+            LOG_WARNING("Full rooms - informing user with fd: " + std::to_string(client_fd));
+            std::string err = Protocol::PROTOCOL_HEADER + "WAITING" +
+                            Protocol::SPLITTER + std::to_string(Protocol::INVALID_WAITING) +
+                            Protocol::PROTOCOL_END;
             send_all(client_fd, err);
             return true;
         }
@@ -420,21 +449,24 @@ namespace MyServer {
             // MSG to both players - GAME|<start_symbol>|<opponent nick>|<board>
             std::string msg1 = Protocol::PROTOCOL_HEADER + "GAME" + 
                             Protocol::SPLITTER + "START_X" +
-                            Protocol::SPLITTER + players[1]->nickname +
+                            Protocol::SPLITTER + players[RoomConfig::SECOND_PLAYER]->nickname +
                             Protocol::SPLITTER + room->get_board_string() +
                             Protocol::PROTOCOL_END;
             
-            send_all(players[0]->fd_socket, msg1);
+            send_all(players[RoomConfig::FIRST_PLAYER]->fd_socket, msg1);
 
             std::string msg2 = Protocol::PROTOCOL_HEADER + "GAME" + Protocol::SPLITTER + "START_O" + 
-                                Protocol::SPLITTER + players[0]->nickname + 
-                                Protocol::SPLITTER + room->get_board_string() + Protocol::PROTOCOL_END;
-            send_all(players[1]->fd_socket, msg2);
+                                Protocol::SPLITTER + players[RoomConfig::FIRST_PLAYER]->nickname + 
+                                Protocol::SPLITTER + room->get_board_string() +
+                                Protocol::PROTOCOL_END;
+            send_all(players[RoomConfig::SECOND_PLAYER]->fd_socket, msg2);
             
             LOG_INFO("Match started in Room " + std::to_string(room->id));
         } else {
             // Waiting for another player
-            std::string wait_msg = Protocol::PROTOCOL_HEADER + "WAITING" + Protocol::PROTOCOL_END;
+            std::string wait_msg = Protocol::PROTOCOL_HEADER + "WAITING" +
+                                Protocol::SPLITTER + std::to_string(Protocol::VALID_WAITING) +
+                                Protocol::PROTOCOL_END;
             send_all(client_fd, wait_msg);
         }
 
@@ -442,7 +474,9 @@ namespace MyServer {
     }
 
     bool Server::handle_move(int client_fd, std::shared_ptr<User> user, const std::vector<std::string>& parts) {
-        if (parts.size() < 3) {
+        if (parts.size() < Protocol::MOVE_ARGS) {
+            LOG_WARNING("Invalid amount of parameters for MOVE by user: " + user->nickname  + " -> Disconnecting...");
+            handle_disconnection(client_fd);
             return false;
         }
 
@@ -450,8 +484,9 @@ namespace MyServer {
         if (!room) return false; // Player not in the room
 
         try {
-            int x = std::stoi(parts[1]);
-            int y = std::stoi(parts[2]);
+            // Check int
+            int x = std::stoi(parts[Protocol::MOVE_X_POS]);
+            int y = std::stoi(parts[Protocol::MOVE_Y_POS]);
 
             // Process move - returns game_rsp
             std::string game_response = room->process_move(client_fd, x, y);
@@ -462,12 +497,16 @@ namespace MyServer {
                 is_error = (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::OCCUPIED_FIELD)) != std::string::npos) ||
                                 (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::NOT_YOUR_TURN)) != std::string::npos) ||
                                 (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::INVALID_MOVE)) != std::string::npos) ||
-                                (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::PLAYER_NOT_BELONG)) != std::string::npos) ||
-                                (game_response.rfind("ERROR", 0) == 0);
+                                (game_response.find(Protocol::SPLITTER + std::to_string(Protocol::PLAYER_NOT_BELONG)) != std::string::npos);
             }
 
             if (is_error) {
-                std::string full_msg = Protocol::PROTOCOL_HEADER + game_response + Protocol::PROTOCOL_END;
+                std::string next_turn_sym = std::string(1, room->get_current_turn_symbol());
+
+                std::string full_msg = Protocol::PROTOCOL_HEADER + game_response +
+                                    Protocol::SPLITTER + next_turn_sym +
+                                    Protocol::PROTOCOL_END;
+                
                 send_all(client_fd, full_msg);
             } 
             else {
@@ -493,7 +532,9 @@ namespace MyServer {
 
             return true;
         } catch (const std::exception& e) {
-            LOG_WARNING("Invalid integer format in MOVE command from fd: " + std::to_string(client_fd));
+            LOG_WARNING("Invalid integer format in MOVE command from user: " + 
+                user->nickname + "-> Disconnecting....");
+            handle_disconnection(client_fd);
             return false;
         }
 
@@ -510,7 +551,7 @@ namespace MyServer {
             case USER_STATE::IN_GAME: {
                 auto room = RoomManager::get_room_by_user_fd(client_fd);
                 if (room) {
-                    char my_symbol = (room->get_players()[RoomConfig::FIRST_PLAYER]->fd_socket == client_fd) ? 'X' : 'O';
+                    char my_symbol = (room->get_players()[RoomConfig::FIRST_PLAYER]->fd_socket == client_fd) ? Protocol::ST_PLAYER_CHAR : Protocol::ND_PLAYER_CHAR;
                     
                     // Get user nick
                     auto opponent = room->get_opponent(client_fd);
@@ -624,7 +665,9 @@ namespace MyServer {
             int turn_index = room->get_turn_index();
             
             for (auto& p : players) {
-                char p_sym = (p->fd_socket == players[turn_index]->fd_socket) ? current_symbol : ((current_symbol == 'X') ? 'O' : 'X');
+                char p_sym = (p->fd_socket == players[turn_index]->fd_socket) ? current_symbol : 
+                    ((current_symbol == Protocol::ST_PLAYER_CHAR) ? Protocol::ND_PLAYER_CHAR : Protocol::ST_PLAYER_CHAR);
+            
                 auto opp = room->get_opponent(p->fd_socket);
                 
                 // MSG: GAME|START_X|<opp_nick>|<board>
@@ -637,7 +680,8 @@ namespace MyServer {
             }
         } else {
             // Inform about waiting for opponent response
-            send_all(client_fd, Protocol::PROTOCOL_HEADER + "GAME" + Protocol::SPLITTER + "REMATCH_WAIT" + Protocol::PROTOCOL_END);
+            send_all(client_fd, Protocol::PROTOCOL_HEADER + "GAME" + 
+                Protocol::SPLITTER + "REMATCH_WAIT" + Protocol::PROTOCOL_END);
         }
         return true;
     }
@@ -679,5 +723,29 @@ namespace MyServer {
             }
         }
         return true;
+    }
+
+    // ==============================
+    // --- Maintenance functions ---
+
+        void Server::cleanup_unauth_sockets() {
+        auto now = std::chrono::steady_clock::now();
+        auto timeout = std::chrono::seconds(Config::AUTH_TIMEOUT);
+
+        for (auto it = unauth_sockets.begin(); it != unauth_sockets.end(); ) {
+            // Check timeout
+            if (now - it->second.joined_time > timeout) {
+                int fd_to_close = it->first;
+                LOG_WARNING("Anonymous connection timeout on fd: " + std::to_string(fd_to_close));
+                
+                // Remove socket 
+                close(fd_to_close);
+                FD_CLR(fd_to_close, &current_sockets);
+            
+                it = unauth_sockets.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 }

@@ -157,6 +157,7 @@ private:
 
     /**
      * Creates response for the move
+        - <command>|<code>|<board>
      * @param tag String representation of response tag msg
      * @param code Integer representing code response of the tag
      * @return formatted response of server

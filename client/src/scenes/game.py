@@ -9,17 +9,16 @@ from PyQt6.QtWidgets import (
     QWidget, QGridLayout, QPushButton, QLabel, QVBoxLayout,
     QHBoxLayout
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from core.styling import (
+from PyQt6.QtCore import (
+    Qt, pyqtSignal, QTimer
+)
+from src.core.styling import (
     TITLE_FONT, LABEL_FONT,
     BLUE_BTN_STYLE, RED_BTN_STYLE,
-    TILE_STYLE, ORANGE_TXT_STYLE, GREEN_TXT_STYLE
+    TILE_STYLE, ORANGE_TXT_STYLE, GREEN_TXT_STYLE,
+    STATUS_MSG_STYLE
 )
-from core.constants import (
-    BOARD_SIZE, DEFAULT_SPACING,
-    BOARD_SPACING, BOARD_TILE_SIZE,
-    TOTAL_TILES
-)
+from src.core.constants import *
 
 
 class GameScene(QWidget):
@@ -55,7 +54,7 @@ class GameScene(QWidget):
         
         # Rematch btn
         self.rematch_btn: QPushButton = QPushButton("REMATCH", self)
-        self.rematch_btn.clicked.connect(self.rematchRequest.emit)
+        self.rematch_btn.clicked.connect(self._onRematchClick)
         
         # Btn container
         self.end_game_container: QWidget = QWidget()
@@ -113,12 +112,15 @@ class GameScene(QWidget):
         self.rematch_btn.setStyleSheet(BLUE_BTN_STYLE)
         self.back_btn.setStyleSheet(RED_BTN_STYLE)
 
+        self.back_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.rematch_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
         button_layout = QHBoxLayout(self.end_game_container)
-        button_layout.addStretch(1)
+        button_layout.addStretch(GAME_BTN_SPACING)
         button_layout.addWidget(self.back_btn)
         button_layout.addSpacing(DEFAULT_SPACING)
         button_layout.addWidget(self.rematch_btn)
-        button_layout.addStretch(1)
+        button_layout.addStretch(GAME_BTN_SPACING)
 
         layout.addWidget(self.end_game_container)
         layout.addStretch()
@@ -136,13 +138,18 @@ class GameScene(QWidget):
         """
         self.my_symbol = my_symbol
         self.opponent_nick = opponent_nick
+
         self.status_label.setText(f"You are playing as: {my_symbol}")
         self.opponent_label.setText(f"Opponent: {opponent_nick}")
+        self.rematch_btn.setText("Rematch")
+
         self.end_game_container.hide()
         self.board_enabled = True
         
         # Initial draw (X starts)
         self.updateBoard(board_str, 'X')
+        self.rematch_btn.setEnabled(True)
+        self.back_btn.setEnabled(True)
 
     def syncPlayingGame(self, my_symbol: str, board_str: str, turn_symbol: str, opponent_nick: str):
         """
@@ -214,7 +221,7 @@ class GameScene(QWidget):
 
         self.is_my_turn = (turn_symbol == self.my_symbol)
 
-        if (resume_flag):
+        if resume_flag:
             if self.is_my_turn:
                 self._setTurnText("Game Resume - YOUR TURN!", GREEN_TXT_STYLE)
             else:
@@ -235,12 +242,23 @@ class GameScene(QWidget):
         self.turn_label.setStyleSheet("color: red;")
         self._setGridEnabled(False)
 
+        # Activate leave button
+        self.end_game_container.show()
+        self.back_btn.show()
+        self.back_btn.setEnabled(True)
+        
+        self.rematch_btn.hide()
+
     def setResumed(self, turn_symbol: str):
         """
         Activates game, when opponent reconnects
         """
         self.board_enabled = True
-        self.status_label.setText(f"You are playing as: {self.my_symbol}")
+        self.status_label.setText(f"You are playing as: {self.my_symbol}")\
+
+        # Hide opponent
+        self.end_game_container.hide()
+        self.back_btn.setEnabled(False)
         
         if turn_symbol:
             self._updateTurnInfo(turn_symbol, True)
@@ -257,6 +275,14 @@ class GameScene(QWidget):
         """
         self.board_enabled = False
         self._setGridEnabled(False)
+
+        # Buttons reset
+        self.rematch_btn.show()
+        self.rematch_btn.setEnabled(True)
+        self.rematch_btn.setText("Rematch")
+    
+        self.back_btn.show()
+        self.back_btn.setEnabled(True)
         self.end_game_container.show()
 
         if game_result == "WIN":
@@ -316,3 +342,60 @@ class GameScene(QWidget):
         self.handleResult(game_result, winner_nick)
         
         self.end_game_container.show()
+
+    def setLocalConnectionErr(self, is_reconnecting: bool):
+        """
+        Informs user about local connection error
+
+        Args:
+            is_reconnecting - value indicating reconnection
+        """
+        if is_reconnecting:
+            self.status_label.setText("CONNECTION LOST!")
+            self.turn_label.setText("Trying to reconnect...")
+            self.turn_label.setStyleSheet(ORANGE_TXT_STYLE)
+        self._setGridEnabled(False)
+        self.board_enabled = False
+
+    def displayTurnError(self, message: str):
+        """
+        Temporarily shows turn error msg
+
+        Args
+            message - msg to show
+        """
+        original_text = self.turn_label.text()
+        original_style = self.turn_label.styleSheet()
+        
+        self.turn_label.setText(message)
+        self.turn_label.setStyleSheet(STATUS_MSG_STYLE)
+        
+        QTimer.singleShot(ERROR_MSG_TIME, lambda: self._restoreTurnLabel(original_text, original_style))
+
+    def _restoreTurnLabel(self, text: str, style: str):
+        """
+        Restores text to its previous msg
+
+        text:
+            text - original text of turn_label
+            style - original style of turn_label
+        """
+        self.turn_label.setText(text)
+        self.turn_label.setStyleSheet(style)
+
+    def _onRematchClick(self):
+        """
+        Called after click on the rematch btn
+        """
+
+        self.rematch_btn.setEnabled(False)
+        self.rematch_btn.setText("WAITING...")
+        self.turn_label.setText("Waiting for opponent's response...")
+        self.turn_label.setStyleSheet(STATUS_MSG_STYLE)
+        self.rematchRequest.emit()
+
+    def showRematchWait(self):
+        """
+        Called after the server approved the rematch request
+        """
+        self.turn_label.setText("Request sent! Waiting for opponent...")
