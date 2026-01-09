@@ -334,45 +334,54 @@ namespace MyServer {
             if (command == "PING") {
                 return handle_ping(client_fd, user);
             }
-            if (command == "SYNC") {
-                return handle_sync(client_fd, user);
-            }
             if (command == "DISCONNECT") {
                 LOG_INFO("User " + user->nickname + " requested disconnect.");
                 handle_disconnection(client_fd);
                 return false;
             }
 
-            // Commands based on the state
-            if (command == "FIND") {
-                if (user->state == USER_STATE::CONNECTED ||
-                    user->state == USER_STATE::WAITING) {
-                    return handle_find(client_fd, user);
+            if (!user->is_reconnecting) {
+                // Commands based on the state
+                if (command == "FIND") {
+                    if (user->state == USER_STATE::CONNECTED ||
+                        user->state == USER_STATE::WAITING) {
+                        return handle_find(client_fd, user);
+                    }
+                    LOG_WARNING("User " + user->nickname + " sent FIND but is not in Lobby.");
                 }
-                LOG_WARNING("User " + user->nickname + " sent FIND but is not in Lobby.");
-            }
-            else if (command == "MOVE") {
-                if (user->state == USER_STATE::IN_GAME) {
-                    return handle_move(client_fd, user, parts);
+                else if (command == "MOVE") {
+                    if (user->state == USER_STATE::IN_GAME) {
+                        return handle_move(client_fd, user, parts);
+                    }
+                    LOG_WARNING("User " + user->nickname + " sent MOVE but is not in a match.");
                 }
-                LOG_WARNING("User " + user->nickname + " sent MOVE but is not in a match.");
-            }
-            else if (command == "REMATCH") {
-                if (user->state == USER_STATE::RESULT) {
-                    return handle_rematch(client_fd, user);
+                else if (command == "REMATCH") {
+                    if (user->state == USER_STATE::RESULT) {
+                        return handle_rematch(client_fd, user);
+                    }
+                    LOG_WARNING("User " + user->nickname + " sent REMATCH in invalid state.");
                 }
-                LOG_WARNING("User " + user->nickname + " sent REMATCH in invalid state.");
-            }
-            else if (command == "LEAVE") {
-                if (user->state != USER_STATE::CONNECTED) {
-                    return handle_leave(client_fd, user);
+                else if (command == "LEAVE") {
+                    if (user->state != USER_STATE::CONNECTED) {
+                        return handle_leave(client_fd, user);
+                    }
                 }
-            }
-            else {
-                // Unknown command
-                LOG_ERROR("Unknown command '" + command + "' from user " + user->nickname);
-                handle_disconnection(client_fd);
-                return false;
+                else {
+                    // Unknown command
+                    LOG_ERROR("Unknown command '" + command + "' from user " + user->nickname);
+                    handle_disconnection(client_fd);
+                    return false;
+                }
+            } else {
+                // Reconnecting function
+                if (command == "SYNC") {
+                    return handle_sync(client_fd, user);
+                } 
+                else {
+                    LOG_ERROR("Unknown command '" + command + "' from user " + user->nickname);
+                    handle_disconnection(client_fd);
+                    return false;
+                }
             }
         } 
 
@@ -542,6 +551,7 @@ namespace MyServer {
 
     bool Server::handle_sync(int client_fd, std::shared_ptr<User> user) {
         std::string sync_msg;
+        user->is_reconnecting = false;
 
         switch (user->state) {
             case USER_STATE::WAITING:
@@ -728,7 +738,7 @@ namespace MyServer {
     // ==============================
     // --- Maintenance functions ---
 
-        void Server::cleanup_unauth_sockets() {
+    void Server::cleanup_unauth_sockets() {
         auto now = std::chrono::steady_clock::now();
         auto timeout = std::chrono::seconds(Config::AUTH_TIMEOUT);
 

@@ -22,6 +22,7 @@ class User {
         std::string nickname;       /** nickname of the user */
         std::chrono::steady_clock::time_point last_active;  /** timestamp of last activity of a user */
         std::string partial_msg;        /** buffer for user's message */
+        bool is_reconnecting;
 
         /**
          * Constructor of User class

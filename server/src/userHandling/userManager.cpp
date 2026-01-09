@@ -90,8 +90,12 @@ int UserManager::handle_login(int client_fd, const std::string& nick) {
         if (user->fd_socket == Protocol::DISCONNECTED_USER_SOCKET
         && user->nickname == nick) {
             LOG_INFO("Reconnecting user: " + nick + "... new fd is " + std::to_string(client_fd));
+
+            // Setting user's data
             user->fd_socket = client_fd;
             user->last_active = std::chrono::steady_clock::now();
+            user->is_reconnecting = true;
+
             return Protocol::LOGIN_RECONNECT;
         }
         // Duplicity name
