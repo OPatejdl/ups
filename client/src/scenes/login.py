@@ -154,4 +154,5 @@ class LoginScene(QWidget):
         """
         Shows error msg
         """
+        self.login_btn.setEnabled(True)
         self.status_msg.setText(msg)
