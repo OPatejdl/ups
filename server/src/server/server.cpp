@@ -440,6 +440,21 @@ namespace MyServer {
         LOG_INFO("User with fd: " + std::to_string(client_fd) + " tries to find a game");
         if (user->state == USER_STATE::IN_GAME) return false;
 
+        // Check if user doesn't already waiting in a room
+        auto user_room = RoomManager::get_room_by_user_fd(client_fd);
+        if (user_room) {
+            LOG_INFO("User: " + std::to_string(client_fd) +" already in the room: " +
+                std::to_string(user_room->id));
+
+            // Send waiting 0
+            std::string wait_msg = Protocol::PROTOCOL_HEADER + "WAITING" +
+                                Protocol::SPLITTER + std::to_string(Protocol::VALID_WAITING) +
+                                Protocol::PROTOCOL_END;
+            send_all(client_fd, wait_msg);
+            return true;
+        }
+
+        // Try to join new room
         auto room = RoomManager::join_waiting_room(user);
 
         if (!room) {
