@@ -18,7 +18,7 @@ namespace Utility {
     // ====================
     // Preprocess symbols
     inline constexpr int  MIN_ARG = 5;  /** Minimal number of expected arguments */
-    inline constexpr int MAX_ARG = 7;   /** Maximum number of expected arguments */
+    inline constexpr int MAX_ARG = 9;   /** Maximum number of expected arguments */
 
     // ====================
     // Error codes
@@ -34,6 +34,7 @@ namespace Utility {
     extern unsigned int PORT;                               /** Global port number used by the server */
     extern unsigned int ROOMS_COUNT;                        /** Maximum allowed number of game rooms  */
     extern unsigned int CLIENTS_COUNT;                      /** Maximum number of clients that can be connected at one time */
+    extern std::string IP_ADDRESS;                          /** IP address of server */
     extern volatile sig_atomic_t server_running;            /** Signal indicating if the server should continue running (safe shutdown usage) */
 
     // =====================
@@ -60,6 +61,13 @@ namespace Utility {
      * @return A vector of splitted strings
      */
     std::vector<std::string> split(const std::string& s, char spliter);
+
+    /**
+     * Checks if ip address value is set in valid format
+     * @param ip The string representation of IP address
+     * @return true if valid otherwise false
+     */
+    bool is_valid_ipv4(const std::string& ip);
 }
 
 #endif

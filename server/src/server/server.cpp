@@ -140,7 +140,12 @@ namespace MyServer {
         memset(&my_addr, 0, sizeof(struct sockaddr_in));
         my_addr.sin_family = AF_INET;
         my_addr.sin_port = htons(Utility::PORT);
-        my_addr.sin_addr.s_addr = INADDR_ANY;
+        
+        // Convert address
+        if (inet_pton(AF_INET, Utility::IP_ADDRESS.c_str(), &my_addr.sin_addr) <= 0) {
+            LOG_ERROR("Invalid IP address foramt: " + Utility::IP_ADDRESS);
+            throw MyExceptions::ServerException(Utility::ERROR_BINDING);
+        }
 
         return_value = bind(server_socket, (struct sockaddr *) &my_addr, sizeof(my_addr));
 

@@ -1,6 +1,8 @@
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
 
+#include <string>
+
 namespace Config {
     // --- Constrains ---
     inline constexpr int MIN_PORT_VALUE = 1024;                             /** Maximal value for port */
@@ -12,6 +14,7 @@ namespace Config {
     inline constexpr int PORT_INIT = 10000;
     inline constexpr unsigned int CLIENT_INIT_COUNT = 0U;
     inline constexpr unsigned int ROOMS_INIT_COUNT = 0U;
+    inline const std::string INIT_IP_ADDRESS = "0.0.0.0";
     inline constexpr size_t MAX_BUFFER_SIZE = 1024;                         /** Maximal size of buffer */
     inline constexpr int BACKLOG_SIZE = 16;
     inline constexpr int ADDITIONAL_STREAM = 1;
