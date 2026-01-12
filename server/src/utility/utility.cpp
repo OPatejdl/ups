@@ -1,6 +1,7 @@
 #include "utility.hpp"
 #include <sstream>
 #include <algorithm>
+#include <arpa/inet.h>
 
 namespace Utility {
     // ---- Init variables ----
@@ -8,6 +9,7 @@ namespace Utility {
     unsigned int ROOMS_COUNT = Config::ROOMS_INIT_COUNT;
     unsigned int CLIENTS_COUNT = Config::CLIENT_INIT_COUNT;
     volatile sig_atomic_t server_running = Config::START_SERVER;
+    std::string IP_ADDRESS = Config::INIT_IP_ADDRESS;
 
     // ---- Functions ----
 
@@ -22,7 +24,7 @@ namespace Utility {
         std::string flag, value_str, msg;
 
         for (int i = 1; i < argc; i += 2) {
-            // check if param has value
+            // Check if param has value
             if (i + 1 >= argc) {
                 msg = "Parameter " + flag + " value was not set\n";
                 LOG_ERROR(msg);
@@ -31,6 +33,18 @@ namespace Utility {
 
             flag = argv[i];
             value_str = argv[i+1];
+
+            if (flag == "-a") {
+                if (is_valid_ipv4(value_str)) {
+                    IP_ADDRESS = value_str;
+                    LOG_INFO("IP address is set to: " + IP_ADDRESS);
+                    continue;
+                } else {
+                    msg = "Invalid IPv4 format: " + value_str + "\n";
+                    LOG_ERROR(msg);
+                    throw MyExceptions::UtilityException(ERROR_INVALID_PARAM);
+                }
+            }
 
             // Try to convert arguments value
             try {
@@ -102,5 +116,10 @@ namespace Utility {
             }
         }
         return tokens;
+    }
+
+    bool is_valid_ipv4(const std::string& ip) {
+        struct sockaddr_in sa;
+        return inet_pton(AF_INET, ip.c_str(), &(sa.sin_addr)) > 0;
     }
 }

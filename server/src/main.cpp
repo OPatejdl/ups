@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
     // Check parameters
     if (argc < Utility::MIN_ARG || argc > Utility::MAX_ARG) {
         LOG_ERROR("Invalid arguments count.\n"
-                "\tNeed to run starting command using format: ./main <-p <PORT>> -c <MAX_CLIENT> -r <MAX_ROOMS>");
+                "\tNeed to run starting command using format: ./server.exe <-p <PORT>> -c <MAX_CLIENT> -r <MAX_ROOMS> [-a <IP>]");
         return Utility::ERROR_INVALID_PARAM;
     };
 
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
         // Check if rooms and client set
         if (Utility::CLIENTS_COUNT == Config::CLIENT_INIT_COUNT || Utility::ROOMS_COUNT == Config::ROOMS_INIT_COUNT) {
             LOG_ERROR("Unset rooms or clients count\n"
-                    "\tNeed to run starting command in format: ./main -c <MAX_CLIENT> -r <MAX_ROOMS>");
+                    "\tNeed to run starting command in format: ./server.exe <-p <PORT>> -c <MAX_CLIENT> -r <MAX_ROOMS> [-a <IP>]");
             return Utility::ERROR_UNSET_PARAMETERS;
         }
 

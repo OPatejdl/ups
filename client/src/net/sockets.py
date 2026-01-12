@@ -198,7 +198,9 @@ class NetworkClient(QObject):
         Message handling function
         """
         if not msg.startswith(self.header):
-            logger.warning(f"Ignored msg with invalid header: {msg[:SHOWN_MSG]}...")
+            logger.warning(f"Invalid msg from server - invalid header")
+            logger.warning(f"\t - Disconnecting from server...")
+            self.disconnect()
             return
 
         payload = msg[len(self.header):]
@@ -234,8 +236,7 @@ class NetworkClient(QObject):
 
         # Waiting room
         elif cmd == "WAITING" and self.client_state in [
-            ClientState.LOBBY, ClientState.WAITING]:
-
+         ClientState.LOBBY, ClientState.WAITING]:
             code = int(parts[WAITING_STATUS]) if len(parts) >= WAITING_ARGS else WAITING_VALID
             self.waiting.emit(code)
 
@@ -358,6 +359,11 @@ class NetworkClient(QObject):
 
         elif cmd == "PONG":
             return
+
+        else:
+            logger.warning(f"Invalid msg from server - invalid command")
+            logger.warning(f"\t - Disconnecting from server...")
+            self.disconnect()
 
     def disconnect(self):
         """
